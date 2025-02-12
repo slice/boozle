@@ -5,18 +5,18 @@ import cats.*
 import cats.data.*
 import cats.syntax.all.*
 import cats.effect.*
-import cats.data.IndexedStateT.{inspectF, modifyF}
 import net.dv8tion.jda.api.JDABuilder
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import net.dv8tion.jda.api.interactions.InteractionHook
-import scala.concurrent.duration._
 
 import net.dv8tion.jda.api.requests.RestAction
 import cats.effect.std.Dispatcher
 
 extension [F[_]: FlatMap, SA, SB, SC, A, B](fa: IndexedStateT[F, SA, SB, A]) {
-  infix def ->(fb: => IndexedStateT[F, SB, SC, B]): IndexedStateT[F, SA, SC, B] = fa.flatMap(_ => fb)
+  infix def ->(
+      fb: => IndexedStateT[F, SB, SC, B]
+  ): IndexedStateT[F, SA, SC, B] = fa.flatMap(_ => fb)
 }
 
 extension [F[_]](async: Async[F]) {
@@ -30,28 +30,36 @@ case class Pending(event: SlashCommandInteractionEvent) extends InteractionState
 case class Responded(event: SlashCommandInteractionEvent, hook: InteractionHook)
     extends InteractionState
 
-type Unhandled[F[_], A] = StateT[F, Pending, A]
-type Responding[F[_], A] = IndexedStateT[F, Pending, Responded, A]
+type Unhandled[F[_], A]        = StateT[F, Pending, A]
+type Responding[F[_], A]       = IndexedStateT[F, Pending, Responded, A]
 type AlreadyResponded[F[_], A] = StateT[F, Responded, A]
 
-def defer[F[_]: Async as F](ephemeral: Boolean = false): Responding[F, Unit] =
-  modifyF { case Pending(event) => F.fromRestAction(event.deferReply(ephemeral)).map(Responded(event, _)) }
+trait Discord[F[_]] {
+  def defer(): F[Unit]
+  def reply(content: String): F[Unit]
+  def followUp(content: String): F[Unit]
+}
 
-def reply[F[_]: Async as F](content: String, ephemeral: Boolean = true): Responding[F, Unit] =
-  modifyF { case Pending(event) => F.fromRestAction(event.reply(content)).map(Responded(event, _)) }
+type Interacting[F[_]] = ReaderT[F, SlashCommandInteractionEvent, *]
+object Discord {
+  import ReaderT.*
 
-def followUp[F[_]: Async as F](content: String): AlreadyResponded[F, Unit] =
-  inspectF { case Responded(event, hook) => F.fromRestAction(hook.sendMessage(content)).void }
+  def ofAsync[F[_]](using
+      F: Async[F]
+  ): Discord[Interacting[F]] = new Discord {
+    override def defer(): Interacting[F][Unit] =
+      ask flatMapF { e => F.fromRestAction(e.deferReply()).void }
+    override def reply(content: String): Interacting[F][Unit] =
+      ask flatMapF { e => F.fromRestAction(e.reply(content)).void }
+    override def followUp(content: String): Interacting[F][Unit] =
+      ask flatMapF { e =>
+        F.fromRestAction(e.getHook.sendMessage(content)).void
+      }
+  }
+}
 
-def lift[F[_]: Monad, S, A](fa: F[A]): StateT[F, S, A] =
-  IndexedStateT.liftF(fa)
-
-def thonk[F[_]: Async] = for {
-  _ <- defer(ephemeral = true)
-  _ <- lift(Temporal[F].sleep(5.seconds))
-  _ <- followUp("hello")
-  _ <- followUp("hello (2)")
-  _ <- followUp("hello (3)")
+def thonk[F[_]](using Monad[F])(using F: Discord[F]) = for {
+  _ <- F.reply("hello")
 } yield ()
 
 object Main extends IOApp {
@@ -62,10 +70,16 @@ object Main extends IOApp {
     JDABuilder
       .createLight(token)
       .addEventListeners(new ListenerAdapter {
-        override def onSlashCommandInteraction(event: SlashCommandInteractionEvent): Unit =
+        override def onSlashCommandInteraction(
+            event: SlashCommandInteractionEvent
+        ): Unit = {
+          given Discord[Interacting[IO]] = Discord.ofAsync
           (Dispatcher.sequential[IO] use { dispatcher =>
-            IO.delay(dispatcher.unsafeRunAndForget(thonk[IO].run(Pending(event))))
+            IO.delay(
+              dispatcher.unsafeRunAndForget(thonk[Interacting[IO]].run(event))
+            )
           }).unsafeRunSync()
+        }
       })
       .build()
     ExitCode.Success
