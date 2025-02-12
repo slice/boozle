@@ -16,3 +16,8 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-free" % "2.13.0",
   "net.dv8tion" % "JDA" % "5.3.0" exclude ("club.minnced", "opus-java")
 )
+
+scalacOptions ++= Seq(
+  "-old-syntax",
+  "-no-indent"
+)
