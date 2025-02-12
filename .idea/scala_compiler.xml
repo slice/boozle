@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ScalaCompilerConfiguration">
+    <profile name="bsp 1" modules="root">
+      <option name="implicitConversions" value="true" />
+      <option name="higherKinds" value="true" />
+      <option name="macros" value="true" />
+      <option name="deprecationWarnings" value="true" />
+      <option name="uncheckedWarnings" value="true" />
+      <option name="featureWarnings" value="true" />
+      <parameters>
+        <parameter value="-encoding" />
+        <parameter value="utf8" />
+        <parameter value="-Xkind-projector" />
+        <parameter value="-Wvalue-discard" />
+        <parameter value="-Wnonunit-statement" />
+        <parameter value="-Wunused:implicits" />
+        <parameter value="-Wunused:explicits" />
+        <parameter value="-Wunused:imports" />
+        <parameter value="-Wunused:locals" />
+        <parameter value="-Wunused:params" />
+        <parameter value="-Wunused:privates" />
+        <parameter value="-Xfatal-warnings" />
+        <parameter value="-Xsemanticdb" />
+        <parameter value="-semanticdb-target" />
+        <parameter value="$USER_HOME$/Developer/prj/mootiepop3/target/scala-3.6.2/meta" />
+      </parameters>
+    </profile>
+    <profile name="bsp 2" modules="root-build">
+      <option name="deprecationWarnings" value="true" />
+      <parameters>
+        <parameter value="-Wconf:cat=unused-nowarn:s" />
+        <parameter value="-Wconf:cat=unused-nowarn:s" />
+        <parameter value="-Xsource:3" />
+        <parameter value="-Yrangepos" />
+        <parameter value="-P:semanticdb:synthetics:on" />
+        <parameter value="-P:semanticdb:failures:warning" />
+        <parameter value="-P:semanticdb:sourceroot:/Users/skip/Developer/prj/mootiepop3/project" />
+        <parameter value="-P:semanticdb:targetroot:/Users/skip/Developer/prj/mootiepop3/project/target/scala-2.12/sbt-1.0/meta" />
+      </parameters>
+      <plugins>
+        <plugin path="$USER_HOME$/Library/Caches/Coursier/v1/https/repo1.maven.org/maven2/org/scalameta/semanticdb-scalac_2.12.20/4.12.3/semanticdb-scalac_2.12.20-4.12.3.jar" />
+      </plugins>
+    </profile>
+  </component>
+</project>
