@@ -14,5 +14,7 @@ libraryDependencies ++= Seq(
 
 scalacOptions ++= Seq(
   "-old-syntax",
-  "-no-indent"
+  "-no-indent",
+  "-source",
+  "future"
 )
