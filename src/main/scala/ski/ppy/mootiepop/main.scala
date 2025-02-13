@@ -11,6 +11,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter
 import net.dv8tion.jda.api.requests.RestAction
 import cats.effect.std.Dispatcher
 import net.dv8tion.jda.api.entities.Message
+import org.typelevel.twiddles.*
 
 extension [F[_]](async: Async[F]) {
   def fromRestAction[A](ra: RestAction[A]): F[A] = async.async_ { cb =>
@@ -38,7 +39,8 @@ object Discord {
 }
 
 object Main extends IOApp {
-  val x = IO(2)
+  import ski.ppy.mootiepop.Param.*
+
   def run(args: List[String]): IO[ExitCode] = Dispatcher.parallel[IO] use {
     dispatcher =>
       IO.blocking {
@@ -49,6 +51,7 @@ object Main extends IOApp {
           override def onSlashCommandInteraction(
               event: SlashCommandInteractionEvent
           ): Unit = {
+            event.getOption("hello")
             dispatcher.unsafeRunAndForget(thonk[IO](Discord.ofAsync(event)))
           }
         }

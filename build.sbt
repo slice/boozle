@@ -9,7 +9,8 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-effect" % "3.5.7",
   "org.typelevel" %% "cats-core"   % "2.13.0",
   "org.typelevel" %% "cats-free"   % "2.13.0",
-  "net.dv8tion" % "JDA" % "5.3.0" exclude ("club.minnced", "opus-java")
+  "net.dv8tion" % "JDA" % "5.3.0" exclude ("club.minnced", "opus-java"),
+  "org.typelevel" %% "twiddles-core" % "0.9.0"
 )
 
 scalacOptions ++= Seq(
