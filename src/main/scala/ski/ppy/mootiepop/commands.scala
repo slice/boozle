@@ -1,12 +1,6 @@
 package ski.ppy
 package mootiepop
 
-import cats.*
-import cats.syntax.all.*
-import cats.effect.*
-import cats.effect.std.*
-import scala.concurrent.duration.*
-
 trait Cmd[F[_]] {
   type A
   val args: Args[A]

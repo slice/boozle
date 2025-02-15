@@ -4,19 +4,15 @@ package mootiepop
 import cats.*
 import cats.syntax.all.*
 import cats.effect.*
-import mouse.all.*
 import net.dv8tion.jda.api.JDABuilder
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 
 import net.dv8tion.jda.api.requests.RestAction
 import cats.effect.std.Dispatcher
-import net.dv8tion.jda.api.entities.Message
-import org.typelevel.twiddles.*
 import net.dv8tion.jda.api.interactions.commands.build.Commands
 import net.dv8tion.jda.api.interactions.commands.build.CommandData
 import net.dv8tion.jda.api.interactions.commands.build.OptionData
-import net.dv8tion.jda.api.interactions.commands.OptionType
 import net.dv8tion.jda.api.interactions.InteractionContextType
 import net.dv8tion.jda.api.interactions.IntegrationType
 import net.dv8tion.jda.api.interactions.InteractionHook
@@ -29,8 +25,6 @@ import net.dv8tion.jda.api.interactions.components.{
 import cats.effect.std.Random
 import cats.effect.std.Supervisor
 import net.dv8tion.jda.api.entities.User
-import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction
-import net.dv8tion.jda.api.interactions.components.ActionRow
 
 extension [F[_]](async: Async[F]) {
   def fromRestAction[A](ra: RestAction[A]): F[A] = async.async_ { cb =>
@@ -67,7 +61,7 @@ extension (cs: List[Component]) {
   def makeDiscernable[F[_]: Monad](using
     random: Random[F]
   ): F[List[(String, Component, JDAComponent)]] =
-    cs.traverse { case button: Button[F] =>
+    cs.traverse { case button: Button[?] =>
       random.nextString(16).map { id => (id, button, button.toJDA(id)) }
     }
 }
@@ -129,7 +123,7 @@ def smack[F[_]] = Cmd[F](
 ) { case (interaction, (victim, why)) =>
   interaction.reply(
     s"${victim.getAsMention} *WHAP*",
-    components = List(Button("but why?") { _.reply(s"because: $why") })
+    components = List(Button("but why")(_.reply("hoi")))
   )
 }
 
@@ -142,7 +136,6 @@ type Event = SlashCommandInteractionEvent | ButtonInteractionEvent
 object Main extends IOApp {
 
   val cmds: List[CommandData] = commands.map { (name, cmd) =>
-    show("hello thereeee")
     Commands
       .slash(name, "ouch")
       .addOptions(cmd.args.opts.map(_.toJDA)*)
