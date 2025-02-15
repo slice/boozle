@@ -1,4 +1,5 @@
 import scala.reflect.api.TypeTags
+import scala.quoted.*
 1 + 1
 
 type User = Nothing
@@ -16,5 +17,3 @@ def ban(
   target: Opt[User, "target", Description["who to ban"]],
   reason: Opt[String, "reason", Unit]
 ) = ???
-
-def command[F: TypeTags](ban: F): (String, Option[String]) = {}

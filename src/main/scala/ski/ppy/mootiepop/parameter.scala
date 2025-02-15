@@ -8,6 +8,7 @@ import org.typelevel.twiddles.syntax.*
 import net.dv8tion.jda.api.interactions.commands.*
 import scala.util.Try
 import net.dv8tion.jda.api.interactions.commands.build.OptionData
+import net.dv8tion.jda.api.entities.User
 
 enum ParamType(val value: Int) {
   case String      extends ParamType(3)
@@ -78,6 +79,10 @@ object Args extends TwiddleSyntax[Args] {
   def string(name: String, description: String): Args[String] =
     Args(Opt(ParamType.String, name, description)) { p =>
       p(name).map(_.getAsString)
+    }
+  def user(name: String, description: String): Args[User] =
+    Args(Opt(ParamType.User, name, description)) { p =>
+      p(name).map(_.getAsUser)
     }
   def int(name: String, description: String): Args[Int] =
     Args(Opt(ParamType.Integer, name, description)) { p =>
