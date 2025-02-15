@@ -29,6 +29,8 @@ import net.dv8tion.jda.api.interactions.components.{
 import cats.effect.std.Random
 import cats.effect.std.Supervisor
 import net.dv8tion.jda.api.entities.User
+import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction
+import net.dv8tion.jda.api.interactions.components.ActionRow
 
 extension [F[_]](async: Async[F]) {
   def fromRestAction[A](ra: RestAction[A]): F[A] = async.async_ { cb =>
@@ -75,60 +77,63 @@ object Interaction {
     events: Stream[F, Event],
     supervisor: Supervisor[F],
     event: Event
-  )(using F: Async[F], random: Random[F]): Interaction[F] =
-    new Interaction {
-      override def defer(): F[InteractionResponse] =
-        F.fromRestAction(event.deferReply()).as(InteractionResponse.Deferred)
+  )(using F: Async[F], random: Random[F]): Interaction[F] = new Interaction {
+    override def defer(): F[InteractionResponse] =
+      F.fromRestAction(event.deferReply()).as(InteractionResponse.Deferred)
 
-      override def reply(
-        content: String,
-        components: List[Component] = List.empty
-      ): F[InteractionResponse] = for {
-        action     <- event.reply(content).pure[F]
-        components <- components.makeDiscernable
-        _ <-
-          F.delay(action.addActionRow(components.map(_._3)*))
-            .whenA(!components.isEmpty)
-        message <- F.fromRestAction(action)
-        _ <- supervisor.supervise(
-          events
-            .collect { case k: ButtonInteractionEvent => k }
-            .evalTap { event =>
-              components.find(_._1 == event.getComponentId).traverse {
-                _._2
-                  .asInstanceOf[Button[F]]
-                  .onClick(Interaction.ofAsync[F](events, supervisor, event))
-              }
-            }
-            .compile
-            .drain
-        )
-      } yield InteractionResponse.Messaged(message)
+    override def reply(
+      content: String,
+      components: List[Component] = List.empty
+    ): F[InteractionResponse] = for {
+      action <- event.reply(content).pure[F]
 
-      override def followUp(
-        content: String,
-        components: List[Component] = List.empty
-      ): F[Unit] =
-        F.fromRestAction(event.getHook.sendMessage(content)).void
-    }
+      components <- components.makeDiscernable
+      _ <-
+        F.delay(action.addActionRow(components.map(_._3)*))
+          .whenA(!components.isEmpty)
+
+      message <- F.fromRestAction(action)
+
+      _ <- supervisor.supervise(
+        events
+          .collect { case e: ButtonInteractionEvent => e }
+          .map { event =>
+            val component = components
+              .find(_._1 == event.getComponentId)
+              .map(_._2.asInstanceOf[Button[F]])
+            component.map((event, _))
+          }
+          .unNone
+          .evalMap { (event, button) =>
+            button.onClick(Interaction.ofAsync[F](events, supervisor, event))
+          }
+          .compile
+          .drain
+      )
+    } yield InteractionResponse.Messaged(message)
+
+    override def followUp(
+      content: String,
+      components: List[Component] = List.empty
+    ): F[Unit] =
+      F.fromRestAction(event.getHook.sendMessage(content)).void
+  }
 }
 
 import ski.ppy.mootiepop.Args.*
 
 def bold(text: String): String = s"**$text**"
 
-def smack[F[_]] = Cmd[F, (User, String)](
+def smack[F[_]] = Cmd(
   user("target", "who to smack") *: string("reason", "why you're doing it")
-) { case (i, (victim, why)) =>
-  i.reply(
-    s"\u270b\ud83d\udca5 ${victim.getAsMention} **\\*WHAP\\*** ($why)",
-    components = List(
-      Button("explain?") { _.reply("something xd") }
-    )
+)[F] { case (interaction, (victim, why)) =>
+  interaction.reply(
+    s"${victim.getAsMention} *WHAP*",
+    components = List(Button("but why?") { _.reply(s"because: $why") })
   )
 }
 
-def commands[F[_]] = Map[String, Cmd[F, ?]](
+def commands[F[_]] = Map[String, Cmd[F]](
   "smack" -> smack
 )
 
