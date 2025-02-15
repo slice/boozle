@@ -124,9 +124,9 @@ import ski.ppy.mootiepop.Args.*
 
 def bold(text: String): String = s"**$text**"
 
-def smack[F[_]] = Cmd(
+def smack[F[_]] = Cmd[F](
   user("target", "who to smack") *: string("reason", "why you're doing it")
-)[F] { case (interaction, (victim, why)) =>
+) { case (interaction, (victim, why)) =>
   interaction.reply(
     s"${victim.getAsMention} *WHAP*",
     components = List(Button("but why?") { _.reply(s"because: $why") })
