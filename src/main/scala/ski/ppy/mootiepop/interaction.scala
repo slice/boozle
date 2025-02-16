@@ -39,6 +39,26 @@ object Interaction:
     override def defer(): F[InteractionResponse] =
       event.response.deferReply().liftAsync.as(InteractionResponse.Deferred)
 
+    private def handleInteractions(
+      events: Stream[F, Event],
+      components: Map[String, Component]
+    ): F[Unit] =
+      events.collect:
+        case e: Event.Button => e
+      .map: event =>
+        for
+          (_, component) <-
+            components.find((name, _) => name == event.componentId)
+          // FIXME: hardcoding buttons
+          button = component.asInstanceOf[Button[F]]
+        yield Stream.eval:
+          given Interaction[F] = Interaction.ofAsync[F](event)
+          button.onClick
+      .unNone
+        .parJoinUnbounded
+        .compile
+        .drain
+
     override def reply(
       content: String,
       components: List[Component] = List.empty
@@ -47,29 +67,23 @@ object Interaction:
         action <- event.response.reply(content).pure[F]
 
         components <- components.makeDiscernable
+        jdaComponents = components.map: (name, component) =>
+          // FIXME: hardcoding buttons
+          component.asInstanceOf[Button[F]].toJDA(name)
+        .toList
+
+        hasComponents = !components.isEmpty
         _ <- async
-          .delay(action.addActionRow(components.map(_._3)*))
-          .whenA(!components.isEmpty)
+          .delay(action.addActionRow(jdaComponents*))
+          .whenA(hasComponents)
 
         message <- action.liftAsync
-        events  <- discord.events
 
-        _ <- discord.forget:
-          events
-            .subscribeUnbounded
-            .collect:
-              case e: Event.Button => e
-            .map: event =>
-              val component = components
-                .find(_._1 == event.componentId)
-                .map(_._2.asInstanceOf[Button[F]])
-              component.map((event, _))
-            .unNone
-            .evalMap: (event, button) =>
-              given Interaction[F] = Interaction.ofAsync[F](event)
-              button.onClick
-            .compile
-            .drain
+        events <- discord.events
+        _ <- discord.forget(handleInteractions(
+          events.subscribeUnbounded,
+          components
+        )).whenA(hasComponents)
       yield InteractionResponse.Messaged(message)
 
     override def followUp(

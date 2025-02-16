@@ -3,7 +3,6 @@ package ski.ppy.mootiepop
 import cats.*
 import cats.effect.std.*
 import cats.syntax.all.*
-import net.dv8tion.jda.api.interactions.components.ActionComponent as JDAComponent
 import net.dv8tion.jda.api.interactions.components.buttons.Button as JDAButton
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle as JDAButtonStyle
 
@@ -16,7 +15,7 @@ enum ButtonStyle(raw: Int):
   def toJDA: JDAButtonStyle = JDAButtonStyle.fromKey(raw)
 
 sealed trait Component
-case class Button[F[_]](
+final case class Button[F[_]](
   val label: String,
   val style: ButtonStyle = ButtonStyle.Secondary
 )(val onClick: Interaction[F] ?=> F[InteractionResponse])
@@ -26,7 +25,8 @@ case class Button[F[_]](
 extension (cs: List[Component])
   def makeDiscernable[F[_]: Monad](using
     random: Random[F]
-  ): F[List[(String, Component, JDAComponent)]] =
+  ): F[Map[String, Component]] =
     cs.traverse:
       case button: Button[?] =>
-        random.nextString(16).map(id => (id, button, button.toJDA(id)))
+        random.nextString(16).map(id => (id, button))
+    .map(Map.from)
