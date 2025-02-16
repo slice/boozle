@@ -73,10 +73,10 @@ object Interaction:
 
         events <- discord.events
         _ <- components.isEmpty.unlessA:
-          discord.forget(handleInteractions(
+          handleInteractions(
             events.subscribeUnbounded,
             components
-          ))
+          )
       yield InteractionResponse.Messaged(message)
 
     override def followUp(

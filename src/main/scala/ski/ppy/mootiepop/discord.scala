@@ -14,7 +14,6 @@ import net.dv8tion.jda.api.requests.RestAction
 
 trait Discord[F[_]]:
   def events: F[Topic[F, Event]]
-  def forget[A](fa: F[A]): F[Unit]
   def register(commands: Map[String, Cmd[F]]): F[Unit]
   def act[A](action: RestAction[A]): F[A]
   def shutdown: F[Unit]
@@ -38,7 +37,6 @@ object Discord:
   def fromJDA[F[_]](token: String)(using a: Async[F]): Resource[F, Discord[F]] =
     for
       dispatcher <- Dispatcher.parallel[F]
-      supervisor <- Supervisor[F](await = false)
       topic      <- Resource.eval(Topic[F, Event])
 
       listener = makeListener: event =>
@@ -49,8 +47,7 @@ object Discord:
           .addEventListeners(listener)
           .build()
     yield new:
-      def events: F[Topic[F, Event]]   = topic.pure[F]
-      def forget[A](fa: F[A]): F[Unit] = supervisor.supervise(fa).void
+      def events: F[Topic[F, Event]] = topic.pure[F]
       def register(commands: Map[String, Cmd[F]]): F[Unit] =
         val cmds = (commands
           .map: (name, cmd) =>
