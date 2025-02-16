@@ -25,6 +25,13 @@ trait Interaction[F[_]]:
     components: List[Component] = Nil
   ): F[Unit]
 
+object InteractionSummoners:
+  def reply[F[_]: Interaction as i](
+    content: String,
+    components: List[Component] = Nil
+  ): F[InteractionResponse] =
+    i.reply(content, components = components)
+
 object Interaction:
   def apply[F[_]](using i: Interaction[F]) = i
 

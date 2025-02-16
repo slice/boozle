@@ -11,17 +11,19 @@ import fabric.rw.*
 import fs2.Stream
 import net.dv8tion.jda.api.entities.User
 import ski.ppy.boozle.Args.*
+import InteractionSummoners.*
 
 import java.io.File
 
-def smack[F[_]: Interaction] = Cmd(
-  user("target", "who to smack") *: string("reason", "why you're doing it")
-):
+def smack[F[_]: Interaction] = Cmd(user(
+  "target",
+  "who to smack"
+) *: string("reason", "why you're doing it")):
   case (victim, why) =>
-    Interaction[F].reply(
-      s"${victim.getAsMention} *WHAP*",
+    reply(
+      s"${victim.getAsMention} ***WHAP***",
       components = List(Button("but why"):
-        Interaction[F].reply(s"because: $why"))
+        reply(s"because! $why"))
     )
 
 def commands[F[_]: Interaction] = Map[String, Cmd[F]](
