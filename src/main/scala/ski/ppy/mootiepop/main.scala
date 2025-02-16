@@ -2,29 +2,26 @@ package ski.ppy
 package mootiepop
 
 import cats.*
-import cats.syntax.all.*
 import cats.effect.*
-import net.dv8tion.jda.api.JDABuilder
-import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
-import net.dv8tion.jda.api.hooks.ListenerAdapter
-
-import net.dv8tion.jda.api.requests.RestAction
 import cats.effect.std.Dispatcher
-import net.dv8tion.jda.api.interactions.commands.build.Commands
-import net.dv8tion.jda.api.interactions.commands.build.CommandData
-import net.dv8tion.jda.api.interactions.commands.build.OptionData
-import net.dv8tion.jda.api.interactions.InteractionContextType
-import net.dv8tion.jda.api.interactions.IntegrationType
-import net.dv8tion.jda.api.interactions.InteractionHook
-import fs2.Stream
-import fs2.concurrent.Topic
-import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent
-import net.dv8tion.jda.api.interactions.components.{
-  ActionComponent as JDAComponent
-}
 import cats.effect.std.Random
 import cats.effect.std.Supervisor
+import cats.syntax.all.*
+import fs2.Stream
+import fs2.concurrent.Topic
+import net.dv8tion.jda.api.JDABuilder
 import net.dv8tion.jda.api.entities.User
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent
+import net.dv8tion.jda.api.hooks.ListenerAdapter
+import net.dv8tion.jda.api.interactions.IntegrationType
+import net.dv8tion.jda.api.interactions.InteractionContextType
+import net.dv8tion.jda.api.interactions.InteractionHook
+import net.dv8tion.jda.api.interactions.commands.build.CommandData
+import net.dv8tion.jda.api.interactions.commands.build.Commands
+import net.dv8tion.jda.api.interactions.commands.build.OptionData
+import net.dv8tion.jda.api.interactions.components.ActionComponent as JDAComponent
+import net.dv8tion.jda.api.requests.RestAction
 
 extension [F[_]](async: Async[F]) {
   def fromRestAction[A](ra: RestAction[A]): F[A] = async.async_ { cb =>

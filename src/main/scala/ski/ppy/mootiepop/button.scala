@@ -1,9 +1,7 @@
 package ski.ppy.mootiepop
 
-import net.dv8tion.jda.api.interactions.components.buttons.{
-  Button as JDAButton,
-  ButtonStyle as JDAButtonStyle
-}
+import net.dv8tion.jda.api.interactions.components.buttons.Button as JDAButton
+import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle as JDAButtonStyle
 
 enum ButtonStyle(raw: Int) {
   case Primary   extends ButtonStyle(1)
@@ -11,7 +9,7 @@ enum ButtonStyle(raw: Int) {
   case Success   extends ButtonStyle(3)
   case Danger    extends ButtonStyle(4)
 
-  def toJDA = JDAButtonStyle.fromKey(raw)
+  def toJDA: JDAButtonStyle = JDAButtonStyle.fromKey(raw)
 }
 
 sealed trait Component
@@ -20,5 +18,5 @@ case class Button[F[_]](
   val style: ButtonStyle = ButtonStyle.Secondary
 )(val onClick: Interaction[F] => F[Unit])
     extends Component {
-  def toJDA(id: String) = JDAButton.of(style.toJDA, id, label)
+  def toJDA(id: String): JDAButton = JDAButton.of(style.toJDA, id, label)
 }

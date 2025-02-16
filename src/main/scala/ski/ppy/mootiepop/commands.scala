@@ -8,13 +8,13 @@ trait Cmd[F[_]] {
 }
 
 object Cmd {
-  def apply[F[_]] = [CA] =>
+  def apply[F[_]]: [CA] => (as: Args[CA]) => ((Interaction[F], CA) => F[InteractionResponse]) => Cmd[F]{type A = CA} = [CA] =>
     (as: Args[CA]) =>
       (f: (Interaction[F], CA) => F[InteractionResponse]) =>
         new Cmd[F] {
           type A = CA
           val args = as
 
-          def run(i: Interaction[F])(as: A) = f(i, as)
+          def run(i: Interaction[F])(as: A): F[InteractionResponse] = f(i, as)
       }
 }

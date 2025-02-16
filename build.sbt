@@ -1,7 +1,17 @@
 name         := "mootiepop"
 version      := "0.0.0"
 organization := "ski.ppy.mootiepop"
-scalaVersion := "3.6.2"
+
+inThisBuild(
+  List(
+    scalaVersion      := "3.6.2",
+    semanticdbEnabled := true,
+    scalafixDependencies ++= Seq(
+      "org.typelevel"      %% "typelevel-scalafix" % "0.5.0",
+      "com.github.xuwei-k" %% "scalafix-rules"     % "0.6.1"
+    )
+  )
+)
 
 Compile / run / fork := true
 

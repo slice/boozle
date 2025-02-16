@@ -3,12 +3,13 @@ package mootiepop
 
 import cats.*
 import cats.syntax.all.*
+import net.dv8tion.jda.api.entities.User
+import net.dv8tion.jda.api.interactions.commands.*
+import net.dv8tion.jda.api.interactions.commands.build.OptionData
 import org.typelevel.twiddles.*
 import org.typelevel.twiddles.syntax.*
-import net.dv8tion.jda.api.interactions.commands.*
+
 import scala.util.Try
-import net.dv8tion.jda.api.interactions.commands.build.OptionData
-import net.dv8tion.jda.api.entities.User
 
 enum ParamType(val value: Int) {
   case String      extends ParamType(3)
