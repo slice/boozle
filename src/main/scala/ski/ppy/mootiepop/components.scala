@@ -19,7 +19,7 @@ sealed trait Component
 case class Button[F[_]](
   val label: String,
   val style: ButtonStyle = ButtonStyle.Secondary
-)(val onClick: Interaction[F] => F[Unit])
+)(val onClick: Interaction[F] ?=> F[InteractionResponse])
     extends Component:
   def toJDA(id: String): JDAButton = JDAButton.of(style.toJDA, id, label)
 

@@ -31,6 +31,8 @@ extension [F[_]](async: Async[F])
     ra.queue(a => cb(Right(a)), e => cb(Left(e)))
 
 object Interaction:
+  def apply[F[_]](using i: Interaction[F]) = i
+
   def ofAsync[F[_]](
     events: Stream[F, Event],
     supervisor: Supervisor[F],
@@ -63,7 +65,9 @@ object Interaction:
             component.map((event, _))
           .unNone
           .evalMap: (event, button) =>
-            button.onClick(Interaction.ofAsync[F](events, supervisor, event))
+            given Interaction[F] =
+              Interaction.ofAsync[F](events, supervisor, event)
+            button.onClick
           .compile
           .drain
     yield InteractionResponse.Messaged(message)

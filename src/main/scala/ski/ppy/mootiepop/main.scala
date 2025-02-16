@@ -20,23 +20,24 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands
 import net.dv8tion.jda.api.interactions.commands.build.OptionData
 import ski.ppy.mootiepop.Args.*
 
-def smack[F[_]] = Cmd[F](
+def smack[F[_]: Interaction] = Cmd(
   user("target", "who to smack") *: string("reason", "why you're doing it")
 ):
-  case (interaction, (victim, why)) =>
-    interaction.reply(
+  case (victim, why) =>
+    Interaction[F].reply(
       s"${victim.getAsMention} *WHAP*",
-      components = List(Button("but why")(_.reply("hoi")))
+      components = List(Button("but why"):
+        Interaction[F].reply(s"because: $why"))
     )
 
-def commands[F[_]] = Map[String, Cmd[F]](
+def commands[F[_]: Interaction] = Map[String, Cmd[F]](
   "smack" -> smack
 )
 
 type Event = SlashCommandInteractionEvent | ButtonInteractionEvent
 
 object Main extends IOApp:
-  val cmds: List[CommandData] = (commands
+  def cmds[F[_]: Interaction]: List[CommandData] = (commands
     .map: (name, cmd) =>
       Commands
         .slash(name, "ouch")
@@ -80,13 +81,16 @@ object Main extends IOApp:
             .collect:
               case event: SlashCommandInteractionEvent =>
                 given Random[IO] = random
-                val interaction = Interaction
-                  .ofAsync[IO](events.subscribeUnbounded, supervisor, event)
+                given Interaction[IO] = Interaction.ofAsync[IO](
+                  events.subscribeUnbounded,
+                  supervisor,
+                  event
+                )
 
                 commands[IO]
                   .get(event.getName)
                   .map: cmd =>
-                    cmd.run(interaction)(cmd.args.extract(event).get)
+                    cmd.run(cmd.args.extract(event).get)
                   .getOrElse(IO.unit)
             .parEvalMapUnbounded(identity)
             .compile
