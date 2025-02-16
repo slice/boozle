@@ -4,8 +4,8 @@ package mootiepop
 import cats.effect.*
 import cats.effect.std.*
 import cats.syntax.all.*
-import mouse.all.*
 import fs2.Stream
+import mouse.all.*
 import net.dv8tion.jda.api.interactions.InteractionHook
 
 enum InteractionResponse:
@@ -65,6 +65,7 @@ object Interaction:
           component.asInstanceOf[Button[F]].toJDA(name)
         .toList
 
+        // FIXME: this is gross as hell
         action_ = event.response.reply(content)
         action =
           components.isEmpty.fold(action_, action_.addActionRow(jdaComponents*))
@@ -83,4 +84,5 @@ object Interaction:
       content: String,
       components: List[Component] = List.empty
     ): F[Unit] =
+      // TODO: clearly unfinished
       discord.act(event.hook.sendMessage(content)).void

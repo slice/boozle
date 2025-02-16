@@ -5,12 +5,13 @@ import cats.*
 import cats.effect.*
 import cats.effect.std.Random
 import cats.syntax.all.*
-import fs2.Stream
 import fabric.*
+import fabric.io.*
+import fabric.rw.*
+import fs2.Stream
 import net.dv8tion.jda.api.entities.User
 import ski.ppy.mootiepop.Args.*
-import fabric.rw.*
-import fabric.io.*
+
 import java.io.File
 
 def smack[F[_]: Interaction] = Cmd(
