@@ -1,5 +1,3 @@
-name         := "mootiepop"
-version      := "0.0.0"
 organization := "ski.ppy.mootiepop"
 
 inThisBuild(
@@ -9,11 +7,14 @@ inThisBuild(
     scalafixDependencies ++= Seq(
       "org.typelevel"      %% "typelevel-scalafix" % "0.5.0",
       "com.github.xuwei-k" %% "scalafix-rules"     % "0.6.1"
+    ),
+    scalacOptions ++= Seq(
+      "-new-syntax",
+      "-source",
+      "future"
     )
   )
 )
-
-Compile / run / fork := true
 
 val fabricVersion = "1.15.9"
 
@@ -31,8 +32,15 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "fabric-io"       % fabricVersion
 )
 
-scalacOptions ++= Seq(
-  "-new-syntax",
-  "-source",
-  "future"
-)
+lazy val mootiepop = project
+  .in(file("."))
+  .settings(
+    name                 := "mootiepop",
+    version              := "0.0.0",
+    maintainer           := "skippy@ppy.ski",
+    Compile / run / fork := true,
+    mainClass            := Some("ski.ppy.mootiepop.Main"),
+    graalVMNativeImageCommand := s"${sys.env.get("JAVA_HOME").get}/bin/native-image"
+  )
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(GraalVMNativeImagePlugin)
