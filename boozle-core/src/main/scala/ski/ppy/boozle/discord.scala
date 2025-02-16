@@ -26,10 +26,10 @@ object Discord:
   def apply[F[_]](using d: Discord[F]): Discord[F] = d
 
   private def makeListener[F[_]](
-    publish1: Event => Unit
+    publish1: Event => Unit,
   ): ListenerAdapter = new:
     override def onSlashCommandInteraction(
-      e: SlashCommandInteractionEvent
+      e: SlashCommandInteractionEvent,
     ): Unit =
       publish1(e.toEvent)
 

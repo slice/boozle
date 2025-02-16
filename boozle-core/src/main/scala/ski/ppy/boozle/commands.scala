@@ -8,7 +8,7 @@ trait Cmd[F[_]]:
 
 object Cmd:
   def apply[F[_]: Interaction, CA](ca: Args[CA])(
-    f: CA => F[InteractionResponse]
+    f: CA => F[InteractionResponse],
   ): Cmd[F] =
     new:
       type A = CA

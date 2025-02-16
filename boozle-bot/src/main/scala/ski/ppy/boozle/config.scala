@@ -5,7 +5,7 @@ import fabric.rw.*
 
 case class Config(
   token: String,
-  register: Boolean
+  register: Boolean,
 )
 
 object Config {

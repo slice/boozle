@@ -18,17 +18,17 @@ import java.io.File
 
 def smack[F[_]: Interaction] = Cmd(user(
   "target",
-  "who to smack"
+  "who to smack",
 ) *: string("reason", "why you're doing it")):
   case (victim, why) =>
     reply(
       s"${victim.getAsMention} ***WHAP***",
       components = List(Button("but why"):
-        reply(s"because! $why"))
+        reply(s"because! $why")),
     )
 
 def commands[F[_]: Interaction] = Map[String, Cmd[F]](
-  "smack" -> smack
+  "smack" -> smack,
 )
 
 object Main extends IOApp:

@@ -37,13 +37,13 @@ case class Opt(
   `type`: ParamType,
   name: String,
   description: String,
-  required: Boolean = true
+  required: Boolean = true,
 ):
   def toJDA: OptionData = OptionData(
     `type`.toJDA,
     name,
     description,
-    required
+    required,
   )
 
 trait Args[A](val opts: List[Opt]):
@@ -74,7 +74,7 @@ object Args extends TwiddleSyntax[Args]:
         yield ff(a)
 
   def apply[A](
-    opts: Opt*
+    opts: Opt*,
   )(f: Event.Slash => Option[A]): Args[A] =
     new Args[A](opts.toList):
       def extract(payload: Event.Slash): Option[A] = f(payload)

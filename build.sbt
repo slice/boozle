@@ -7,14 +7,14 @@ inThisBuild(
     semanticdbEnabled := true,
     scalafixDependencies ++= Seq(
       "org.typelevel"      %% "typelevel-scalafix" % "0.5.0",
-      "com.github.xuwei-k" %% "scalafix-rules"     % "0.6.1"
+      "com.github.xuwei-k" %% "scalafix-rules"     % "0.6.1",
     ),
     scalacOptions ++= Seq(
       "-new-syntax",
       "-source",
-      "future"
-    )
-  )
+      "future",
+    ),
+  ),
 )
 
 val V = new {
@@ -34,19 +34,19 @@ lazy val baseDependencies = Seq(
   "org.typelevel" %% "twiddles-core" % V.twiddles,
   "co.fs2"        %% "fs2-core"      % V.fs2,
   "co.fs2"        %% "fs2-io"        % V.fs2,
-  "net.dv8tion" % "JDA" % V.jda exclude ("club.minnced", "opus-java")
+  "net.dv8tion" % "JDA" % V.jda exclude ("club.minnced", "opus-java"),
 )
 
 lazy val root = (project in file("."))
   .aggregate(core, bot)
   .settings(
-    maintainer.withRank(KeyRanks.Invisible) := "skip@skip.dog"
+    maintainer.withRank(KeyRanks.Invisible) := "skip@skip.dog",
   )
 
 lazy val core = (project in file("./boozle-core"))
   .settings(
     name := "boozle-core",
-    libraryDependencies ++= baseDependencies
+    libraryDependencies ++= baseDependencies,
   )
 
 lazy val bot = (project in file("./boozle-bot"))
@@ -63,6 +63,6 @@ lazy val bot = (project in file("./boozle-bot"))
     libraryDependencies ++= Seq(
       "ch.qos.logback" % "logback-classic" % "1.5.6",
       "org.typelevel" %% "fabric-core"     % V.fabric,
-      "org.typelevel" %% "fabric-io"       % V.fabric
-    )
+      "org.typelevel" %% "fabric-io"       % V.fabric,
+    ),
   )

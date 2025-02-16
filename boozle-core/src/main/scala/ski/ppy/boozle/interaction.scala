@@ -17,18 +17,18 @@ trait Interaction[F[_]]:
 
   def reply(
     content: String,
-    components: List[Component] = Nil
+    components: List[Component] = Nil,
   ): F[InteractionResponse]
 
   def followUp(
     content: String,
-    components: List[Component] = Nil
+    components: List[Component] = Nil,
   ): F[Unit]
 
 object InteractionSummoners:
   def reply[F[_]: Interaction as i](
     content: String,
-    components: List[Component] = Nil
+    components: List[Component] = Nil,
   ): F[InteractionResponse] =
     i.reply(content, components = components)
 
@@ -36,14 +36,14 @@ object Interaction:
   def apply[F[_]](using i: Interaction[F]) = i
 
   def withEvent[F[_]: {Random, Concurrent}](event: Event)(using
-    discord: Discord[F]
+    discord: Discord[F],
   ): Interaction[F] = new:
     override def defer(): F[InteractionResponse] =
       discord.act(event.response.deferReply()).as(InteractionResponse.Deferred)
 
     private def handleInteractions(
       events: Stream[F, Event],
-      components: Map[String, Component]
+      components: Map[String, Component],
     ): F[Unit] =
       events.collect:
         case e: Event.Button => e
@@ -63,7 +63,7 @@ object Interaction:
 
     override def reply(
       content: String,
-      components: List[Component] = List.empty
+      components: List[Component] = List.empty,
     ): F[InteractionResponse] =
       for
         components <- components.makeDiscernable
@@ -83,13 +83,13 @@ object Interaction:
         _ <- components.isEmpty.unlessA:
           handleInteractions(
             events.subscribeUnbounded,
-            components
+            components,
           )
       yield InteractionResponse.Messaged(message)
 
     override def followUp(
       content: String,
-      components: List[Component] = List.empty
+      components: List[Component] = List.empty,
     ): F[Unit] =
       // TODO: clearly unfinished
       discord.act(event.hook.sendMessage(content)).void
