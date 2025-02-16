@@ -1,4 +1,5 @@
-package ski.ppy.mootiepop
+package ski.ppy
+package boozle
 
 import cats.*
 import cats.effect.std.*

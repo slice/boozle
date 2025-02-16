@@ -1,5 +1,5 @@
 package ski.ppy
-package mootiepop
+package boozle
 
 import net.dv8tion.jda.api.events.interaction.command.*
 import net.dv8tion.jda.api.events.interaction.component.*

@@ -973,7 +973,7 @@
       "type": "org.slf4j.spi.SLF4JServiceProvider"
     },
     {
-      "type": "ski.ppy.mootiepop.Config$",
+      "type": "ski.ppy.boozle.Config$",
       "fields": [
         {
           "name": "given_RW_Config$lzy1"
@@ -981,7 +981,7 @@
       ]
     },
     {
-      "type": "ski.ppy.mootiepop.Main$",
+      "type": "ski.ppy.boozle.Main$",
       "fields": [
         {
           "name": "cats$effect$IOApp$$queue$lzy1"

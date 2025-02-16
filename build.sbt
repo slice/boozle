@@ -23,12 +23,12 @@ val V = new {
   def cats   = "2.13.0"
 }
 
-lazy val mootiepop = (project in file("."))
+lazy val boozle = (project in file("."))
   .settings(
-    name                 := "mootiepop",
+    name                 := "boozle",
     maintainer           := "skippy@ppy.ski",
     Compile / run / fork := true,
-    mainClass            := Some("ski.ppy.mootiepop.Main"),
+    mainClass            := Some("ski.ppy.boozle.Main"),
     graalVMNativeImageCommand := s"${sys.env.get("JAVA_HOME").get}/bin/native-image",
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "3.5.7",

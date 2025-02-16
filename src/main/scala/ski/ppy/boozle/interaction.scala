@@ -1,5 +1,5 @@
 package ski.ppy
-package mootiepop
+package boozle
 
 import cats.effect.*
 import cats.effect.std.*

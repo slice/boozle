@@ -1,5 +1,5 @@
 package ski.ppy
-package mootiepop
+package boozle
 
 trait Cmd[F[_]]:
   type A
