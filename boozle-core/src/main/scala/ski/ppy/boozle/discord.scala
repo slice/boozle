@@ -1,6 +1,7 @@
 package ski.ppy
 package boozle
 
+import cats.*
 import cats.effect.*
 import cats.effect.std.*
 import cats.syntax.all.*

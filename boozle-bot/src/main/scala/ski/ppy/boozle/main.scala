@@ -15,8 +15,9 @@ import ski.ppy.boozle.Args.*
 import ski.ppy.boozle.InteractionSummoners.*
 
 import java.io.File
+import scala.concurrent.duration.*
 
-def smack[F[_]: {Concurrent, Interaction, Discord, RandomIDs}] = Cmd(
+def smack[F[_]: {Temporal, Interaction, Discord}] = Cmd(
   user("target", "who to smack") *: string("reason", "why you're doing it"),
 ) { case (victim, why) =>
   val button = Button[F]("but why")
@@ -27,12 +28,13 @@ def smack[F[_]: {Concurrent, Interaction, Discord, RandomIDs}] = Cmd(
     )
     _ <- button.clicks(response)
       .evalMap { case given Interaction[F] => reply("no") }
+      .timeout(1.minutes)
       .compile
       .drain
   yield response
 }
 
-def commands[F[_]: {Concurrent, RandomIDs, Discord, Interaction}] =
+def commands[F[_]: {Discord, Temporal, Interaction}] =
   Map[String, Cmd[F]]("smack" -> smack)
 
 object Main extends IOApp:
@@ -52,6 +54,7 @@ object Main extends IOApp:
             case event @ Event.Slash(slash) =>
               given Discord[F]     = discord
               given Interaction[F] = Interaction.withEvent[F](event)
+              // TODO: catchNonFatal
               Stream.eval:
                 commands[F].get(slash.getName).traverse: cmd =>
                   cmd.run(cmd.args.extract(event).get).void

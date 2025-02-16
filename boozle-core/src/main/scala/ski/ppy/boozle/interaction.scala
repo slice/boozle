@@ -2,17 +2,32 @@ package ski.ppy
 package boozle
 
 import cats.*
+import cats.effect.std.Random
 import cats.syntax.all.*
 import mouse.all.*
 import net.dv8tion.jda.api.interactions.InteractionHook
 
 import InteractionResponse.*
 
+sealed trait RandomIDs[F[_]]:
+  def randomID: F[String]
+
+object RandomIDs:
+  def fromRandom[F[_]: Monad](random: Random[F]): RandomIDs[F] = new:
+    def randomID: F[String] =
+      random.nextPrintableChar.replicateA(16).map(_.mkString)
+
+  extension [F[_]: Applicative](cs: List[Component[F]])
+    def discernable(using rids: RandomIDs[F]): F[Map[String, Component[F]]] =
+      cs.traverse { case button: Button[?] =>
+        rids.randomID.map(id => (id, button))
+      }.map(Map.from)
+
 enum InteractionResponse[F[_]]:
   case Messaged(hook: InteractionHook, components: Map[String, Component[F]])
   case Deferred(hook: InteractionHook)
 
-trait Interaction[F[_]]:
+trait Interaction[F[_]] extends RandomIDs[F]:
   def defer(): F[Deferred[F]]
 
   def reply(
@@ -35,9 +50,12 @@ object InteractionSummoners:
 object Interaction:
   def apply[F[_]](using i: Interaction[F]) = i
 
-  def withEvent[F[_]: {RandomIDs, Monad}](event: Event)(using
+  def withEvent[F[_]: Monad](event: Event)(using
     discord: Discord[F],
+    rids: RandomIDs[F],
   ): Interaction[F] = new:
+    export rids.*
+
     override def defer(): F[Deferred[F]] =
       discord.act(event.response.deferReply()).map: hook =>
         Deferred(hook)
@@ -46,6 +64,7 @@ object Interaction:
       content: String,
       components: List[Component[F]] = List.empty,
     ): F[Messaged[F]] =
+      import RandomIDs.*
       for
         components <- components.discernable
         jdaComponents = components.map { case (name, button: Button[?]) =>

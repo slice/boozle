@@ -2,20 +2,10 @@ package ski.ppy
 package boozle
 
 import cats.*
-import cats.effect.std.Random
-import cats.syntax.all.*
 import fs2.Stream
 import net.dv8tion.jda.api.interactions.components.buttons.Button as JDAButton
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle as JDAButtonStyle
 import ski.ppy.boozle.InteractionResponse.*
-
-sealed trait RandomIDs[F[_]]:
-  def gen: F[String]
-
-object RandomIDs:
-  def fromRandom[F[_]: Monad](random: Random[F]): RandomIDs[F] = new:
-    def gen: F[String] =
-      random.nextPrintableChar.replicateA(16).map(_.mkString)
 
 enum ButtonStyle(raw: Int):
   case Primary   extends ButtonStyle(1)
@@ -51,8 +41,3 @@ object Button:
           }
           .map(Interaction.withEvent[F](_))
     }
-
-extension [F[_]: Applicative](cs: List[Component[F]])
-  def discernable(using rids: RandomIDs[F]): F[Map[String, Component[F]]] =
-    cs.traverse { case button: Button[?] => rids.gen.map(id => (id, button)) }
-      .map(Map.from)
