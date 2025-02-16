@@ -18,31 +18,51 @@ inThisBuild(
 )
 
 val V = new {
-  def fabric = "1.15.9"
-  def fs2    = "3.11.0"
-  def cats   = "2.13.0"
+  def fabric     = "1.15.9"
+  def fs2        = "3.11.0"
+  def cats       = "2.13.0"
+  def catsEffect = "3.5.7"
+  def mouse      = "1.3.2"
+  def twiddles   = "0.9.0"
+  def jda        = "5.3.0"
 }
 
-lazy val boozle = (project in file("."))
+lazy val baseDependencies = Seq(
+  "org.typelevel" %% "cats-core"     % V.cats,
+  "org.typelevel" %% "cats-effect"   % V.catsEffect,
+  "org.typelevel" %% "mouse"         % V.mouse,
+  "org.typelevel" %% "twiddles-core" % V.twiddles,
+  "co.fs2"        %% "fs2-core"      % V.fs2,
+  "co.fs2"        %% "fs2-io"        % V.fs2,
+  "net.dv8tion" % "JDA" % V.jda exclude ("club.minnced", "opus-java")
+)
+
+lazy val root = (project in file("."))
+  .aggregate(core, bot)
   .settings(
-    name                 := "boozle",
-    maintainer           := "skippy@ppy.ski",
-    Compile / run / fork := true,
-    mainClass            := Some("ski.ppy.boozle.Main"),
+    maintainer.withRank(KeyRanks.Invisible) := "skip@skip.dog"
+  )
+
+lazy val core = (project in file("./boozle-core"))
+  .settings(
+    name := "boozle-core",
+    libraryDependencies ++= baseDependencies
+  )
+
+lazy val bot = (project in file("./boozle-bot"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(GraalVMNativeImagePlugin)
+  .settings(
+    name                := "boozle-bot",
+    run / fork          := true,
+    run / baseDirectory := file("."),
+    Compile / mainClass := Some("ski.ppy.boozle.bot.Main"),
     graalVMNativeImageCommand := s"${sys.env.get("JAVA_HOME").get}/bin/native-image",
+    libraryDependencies ++= baseDependencies,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.5.7",
-      "org.typelevel" %% "cats-core"   % V.cats,
-      "org.typelevel" %% "cats-free"   % V.cats,
-      "org.typelevel" %% "mouse"       % "1.3.2",
-      "net.dv8tion" % "JDA" % "5.3.0" exclude ("club.minnced", "opus-java"),
-      "org.typelevel" %% "twiddles-core"   % "0.9.0",
       "ch.qos.logback" % "logback-classic" % "1.5.6",
-      "co.fs2"        %% "fs2-core"        % V.fs2,
-      "co.fs2"        %% "fs2-io"          % V.fs2,
       "org.typelevel" %% "fabric-core"     % V.fabric,
       "org.typelevel" %% "fabric-io"       % V.fabric
     )
   )
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(GraalVMNativeImagePlugin)

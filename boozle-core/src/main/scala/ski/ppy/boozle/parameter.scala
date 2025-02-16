@@ -49,15 +49,6 @@ case class Opt(
 trait Args[A](val opts: List[Opt]):
   def extract(event: Event.Slash): Option[A]
 
-given Applicative[Args]:
-  def pure[A](x: A): Args[A] = Args()(_ => x.some)
-  def ap[A, B](ff: Args[A => B])(fa: Args[A]): Args[B] =
-    Args((ff.opts |+| fa.opts)*): p =>
-      for
-        a  <- fa.extract(p)
-        ff <- ff.extract(p)
-      yield ff(a)
-
 extension (p: CommandInteractionPayload)
   inline def apply(name: String): Option[OptionMapping] =
     Option(p.getOption(name))
@@ -73,6 +64,15 @@ extension (s: Event.Slash)
     s.event(name).flatMap(m => Try(m.getAsInt).toOption)
 
 object Args extends TwiddleSyntax[Args]:
+  given Applicative[Args]:
+    def pure[A](x: A): Args[A] = Args()(_ => x.some)
+    def ap[A, B](ff: Args[A => B])(fa: Args[A]): Args[B] =
+      Args((ff.opts |+| fa.opts)*): p =>
+        for
+          a  <- fa.extract(p)
+          ff <- ff.extract(p)
+        yield ff(a)
+
   def apply[A](
     opts: Opt*
   )(f: Event.Slash => Option[A]): Args[A] =

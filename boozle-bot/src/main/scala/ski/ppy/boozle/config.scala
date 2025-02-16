@@ -1,5 +1,5 @@
 package ski.ppy
-package boozle
+package boozle.bot
 
 import fabric.rw.*
 

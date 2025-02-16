@@ -1,5 +1,5 @@
 package ski.ppy
-package boozle
+package boozle.bot
 
 import cats.*
 import cats.effect.*
@@ -10,8 +10,9 @@ import fabric.io.*
 import fabric.rw.*
 import fs2.Stream
 import net.dv8tion.jda.api.entities.User
+import ski.ppy.boozle.*
 import ski.ppy.boozle.Args.*
-import InteractionSummoners.*
+import ski.ppy.boozle.InteractionSummoners.*
 
 import java.io.File
 
