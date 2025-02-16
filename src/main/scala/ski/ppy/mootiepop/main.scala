@@ -43,7 +43,7 @@ object Main extends IOApp:
             case event @ Event.Slash(slash) =>
               given Discord[F]     = discord
               given Random[F]      = random
-              given Interaction[F] = Interaction.ofAsync[F](event)
+              given Interaction[F] = Interaction.withEvent[F](event)
               Stream.eval:
                 commands[F].get(slash.getName).traverse: cmd =>
                   cmd.run(cmd.args.extract(event).get).void

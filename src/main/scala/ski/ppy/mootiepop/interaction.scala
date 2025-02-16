@@ -4,6 +4,7 @@ package mootiepop
 import cats.effect.*
 import cats.effect.std.*
 import cats.syntax.all.*
+import mouse.all.*
 import fs2.Stream
 import net.dv8tion.jda.api.interactions.InteractionHook
 
@@ -27,10 +28,9 @@ trait Interaction[F[_]]:
 object Interaction:
   def apply[F[_]](using i: Interaction[F]) = i
 
-  def ofAsync[F[_]](event: Event)(using
-    async: Async[F],
+  def withEvent[F[_]: {Random, Concurrent}](event: Event)(using
     discord: Discord[F]
-  )(using Random[F]): Interaction[F] = new:
+  ): Interaction[F] = new:
     override def defer(): F[InteractionResponse] =
       discord.act(event.response.deferReply()).as(InteractionResponse.Deferred)
 
@@ -47,7 +47,7 @@ object Interaction:
           // FIXME: hardcoding buttons
           button = component.asInstanceOf[Button[F]]
         yield Stream.eval:
-          given Interaction[F] = Interaction.ofAsync[F](event)
+          given Interaction[F] = Interaction.withEvent[F](event)
           button.onClick
       .unNone
         .parJoinUnbounded
@@ -59,26 +59,24 @@ object Interaction:
       components: List[Component] = List.empty
     ): F[InteractionResponse] =
       for
-        action <- event.response.reply(content).pure[F]
-
         components <- components.makeDiscernable
         jdaComponents = components.map: (name, component) =>
           // FIXME: hardcoding buttons
           component.asInstanceOf[Button[F]].toJDA(name)
         .toList
 
-        hasComponents = !components.isEmpty
-        _ <- async
-          .delay(action.addActionRow(jdaComponents*))
-          .whenA(hasComponents)
+        action_ = event.response.reply(content)
+        action =
+          components.isEmpty.fold(action_, action_.addActionRow(jdaComponents*))
 
         message <- discord.act(action)
 
         events <- discord.events
-        _ <- discord.forget(handleInteractions(
-          events.subscribeUnbounded,
-          components
-        )).whenA(hasComponents)
+        _ <- components.isEmpty.unlessA:
+          discord.forget(handleInteractions(
+            events.subscribeUnbounded,
+            components
+          ))
       yield InteractionResponse.Messaged(message)
 
     override def followUp(
