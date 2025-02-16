@@ -6,7 +6,6 @@ import cats.effect.std.*
 import cats.syntax.all.*
 import fs2.Stream
 import net.dv8tion.jda.api.interactions.InteractionHook
-import net.dv8tion.jda.api.requests.RestAction
 
 enum InteractionResponse:
   case Messaged(hook: InteractionHook)
@@ -25,10 +24,6 @@ trait Interaction[F[_]]:
     components: List[Component] = Nil
   ): F[Unit]
 
-extension [A](ra: RestAction[A])
-  def liftAsync[F[_]](using a: Async[F]): F[A] = a.`async_`: cb =>
-    ra.queue(a => cb(Right(a)), e => cb(Left(e)))
-
 object Interaction:
   def apply[F[_]](using i: Interaction[F]) = i
 
@@ -37,7 +32,7 @@ object Interaction:
     discord: Discord[F]
   )(using Random[F]): Interaction[F] = new:
     override def defer(): F[InteractionResponse] =
-      event.response.deferReply().liftAsync.as(InteractionResponse.Deferred)
+      discord.act(event.response.deferReply()).as(InteractionResponse.Deferred)
 
     private def handleInteractions(
       events: Stream[F, Event],
@@ -77,7 +72,7 @@ object Interaction:
           .delay(action.addActionRow(jdaComponents*))
           .whenA(hasComponents)
 
-        message <- action.liftAsync
+        message <- discord.act(action)
 
         events <- discord.events
         _ <- discord.forget(handleInteractions(
@@ -90,4 +85,4 @@ object Interaction:
       content: String,
       components: List[Component] = List.empty
     ): F[Unit] =
-      event.hook.sendMessage(content).liftAsync.void
+      discord.act(event.hook.sendMessage(content)).void

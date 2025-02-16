@@ -10,11 +10,13 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import net.dv8tion.jda.api.interactions.*
+import net.dv8tion.jda.api.requests.RestAction
 
 trait Discord[F[_]]:
   def events: F[Topic[F, Event]]
   def forget[A](fa: F[A]): F[Unit]
   def register(commands: Map[String, Cmd[F]]): F[Unit]
+  def act[A](action: RestAction[A]): F[A]
   def shutdown: F[Unit]
 
 extension [F[_], A](r: Resource.type)
@@ -57,5 +59,8 @@ object Discord:
               .setIntegrationTypes(IntegrationType.ALL)
               .setContexts(InteractionContextType.ALL))
           .toList
-        jda.updateCommands().addCommands(cmds*).liftAsync.void
+        act(jda.updateCommands().addCommands(cmds*)).void
+      def act[A](action: RestAction[A]): F[A] =
+        a.`async_`: cb =>
+          action.queue(a => cb(Right(a)), e => cb(Left(e)))
       def shutdown: F[Unit] = a.blocking(jda.shutdown())
