@@ -22,12 +22,12 @@ import ski.ppy.mootiepop.Args.*
 
 def smack[F[_]] = Cmd[F](
   user("target", "who to smack") *: string("reason", "why you're doing it")
-) { case (interaction, (victim, why)) =>
-  interaction.reply(
-    s"${victim.getAsMention} *WHAP*",
-    components = List(Button("but why")(_.reply("hoi")))
-  )
-}
+):
+  case (interaction, (victim, why)) =>
+    interaction.reply(
+      s"${victim.getAsMention} *WHAP*",
+      components = List(Button("but why")(_.reply("hoi")))
+    )
 
 def commands[F[_]] = Map[String, Cmd[F]](
   "smack" -> smack
@@ -35,65 +35,60 @@ def commands[F[_]] = Map[String, Cmd[F]](
 
 type Event = SlashCommandInteractionEvent | ButtonInteractionEvent
 
-object Main extends IOApp {
-
-  val cmds: List[CommandData] = commands.map { (name, cmd) =>
-    Commands
-      .slash(name, "ouch")
-      .addOptions(cmd.args.opts.map(_.toJDA)*)
-      .setIntegrationTypes(IntegrationType.ALL)
-      .setContexts(InteractionContextType.ALL)
-  }.toList
+object Main extends IOApp:
+  val cmds: List[CommandData] = (commands
+    .map: (name, cmd) =>
+      Commands
+        .slash(name, "ouch")
+        .addOptions(cmd.args.opts.map(_.toJDA)*)
+        .setIntegrationTypes(IntegrationType.ALL)
+        .setContexts(InteractionContextType.ALL))
+    .toList
 
   def run(args: List[String]): IO[ExitCode] =
-    Dispatcher.parallel[IO].both(Supervisor[IO](await = false)) use {
+    Dispatcher.parallel[IO].both(Supervisor[IO](await = false)) use:
       (dispatcher, supervisor) =>
-        for {
+        for
           events <- Topic[IO, Event]
 
-          _ <- IO.blocking {
+          _ <- IO.blocking:
             val token =
               "MTI5ODc4ODk3MzUyNjkxMzA3NA.Gz0d1h.Y-TrM2kl_MTpE6i-hKOEd5Jk2USkhE0WrNMtYA"
 
-            val topicListener = new ListenerAdapter {
+            val topicListener = new ListenerAdapter:
               override def onSlashCommandInteraction(
                 event: SlashCommandInteractionEvent
-              ): Unit = {
+              ): Unit =
                 println("Dispatching…")
                 dispatcher.unsafeRunAndForget(events.publish1(event))
-              }
 
               override def onButtonInteraction(
                 event: ButtonInteractionEvent
               ): Unit =
                 dispatcher.unsafeRunAndForget(events.publish1(event))
-            }
 
             JDABuilder
               .createLight(token)
               .addEventListeners(topicListener)
               .build()
-          }
 
           random <- Random.scalaUtilRandom[IO]
 
           _ <- events.subscribeUnbounded
-            .debug { event => s"Incoming event: $event" }
-            .collect { case event: SlashCommandInteractionEvent =>
-              given Random[IO] = random
-              val interaction = Interaction
-                .ofAsync[IO](events.subscribeUnbounded, supervisor, event)
+            .debug: event =>
+              s"Incoming event: $event"
+            .collect:
+              case event: SlashCommandInteractionEvent =>
+                given Random[IO] = random
+                val interaction = Interaction
+                  .ofAsync[IO](events.subscribeUnbounded, supervisor, event)
 
-              commands[IO]
-                .get(event.getName)
-                .map { cmd =>
-                  cmd.run(interaction)(cmd.args.extract(event).get)
-                }
-                .getOrElse(IO.unit)
-            }
+                commands[IO]
+                  .get(event.getName)
+                  .map: cmd =>
+                    cmd.run(interaction)(cmd.args.extract(event).get)
+                  .getOrElse(IO.unit)
             .parEvalMapUnbounded(identity)
             .compile
             .drain
-        } yield ExitCode.Success
-    }
-}
+        yield ExitCode.Success
