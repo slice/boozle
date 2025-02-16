@@ -3,21 +3,10 @@ package mootiepop
 
 import cats.*
 import cats.effect.*
-import cats.effect.std.Dispatcher
 import cats.effect.std.Random
-import cats.effect.std.Supervisor
+import cats.syntax.all.*
 import fs2.Stream
-import fs2.concurrent.Topic
-import net.dv8tion.jda.api.JDABuilder
 import net.dv8tion.jda.api.entities.User
-import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
-import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent
-import net.dv8tion.jda.api.hooks.ListenerAdapter
-import net.dv8tion.jda.api.interactions.IntegrationType
-import net.dv8tion.jda.api.interactions.InteractionContextType
-import net.dv8tion.jda.api.interactions.commands.build.CommandData
-import net.dv8tion.jda.api.interactions.commands.build.Commands
-import net.dv8tion.jda.api.interactions.commands.build.OptionData
 import ski.ppy.mootiepop.Args.*
 
 def smack[F[_]: Interaction] = Cmd(
@@ -34,65 +23,29 @@ def commands[F[_]: Interaction] = Map[String, Cmd[F]](
   "smack" -> smack
 )
 
-type Event = SlashCommandInteractionEvent | ButtonInteractionEvent
-
 object Main extends IOApp:
-  def cmds[F[_]: Interaction]: List[CommandData] = (commands
-    .map: (name, cmd) =>
-      Commands
-        .slash(name, "ouch")
-        .addOptions(cmd.args.opts.map(_.toJDA)*)
-        .setIntegrationTypes(IntegrationType.ALL)
-        .setContexts(InteractionContextType.ALL))
-    .toList
+  def app[F[_]](token: String)(using Async[F]): F[ExitCode] =
+    Discord.fromJDA[F](token).use: discord =>
+      for {
+        random <- Random.scalaUtilRandom[F]
+        events <- discord.events
+        _ <- events.subscribeUnbounded
+          .debug(event => s"[Debug]: Event: $event")
+          .collect:
+            case event @ Event.Slash(slash) =>
+              given Discord[F]     = discord
+              given Random[F]      = random
+              given Interaction[F] = Interaction.ofAsync[F](event)
+              Stream.eval:
+                commands[F].get(slash.getName).traverse: cmd =>
+                  cmd.run(cmd.args.extract(event).get).void
+                .void
+          .parJoinUnbounded
+          .compile
+          .drain
+      } yield ExitCode.Success
 
   def run(args: List[String]): IO[ExitCode] =
-    Dispatcher.parallel[IO].both(Supervisor[IO](await = false)) use:
-      (dispatcher, supervisor) =>
-        for
-          events <- Topic[IO, Event]
-
-          _ <- IO.blocking:
-            val token =
-              "MTI5ODc4ODk3MzUyNjkxMzA3NA.Gz0d1h.Y-TrM2kl_MTpE6i-hKOEd5Jk2USkhE0WrNMtYA"
-
-            val topicListener = new ListenerAdapter:
-              override def onSlashCommandInteraction(
-                event: SlashCommandInteractionEvent
-              ): Unit =
-                println("Dispatching…")
-                dispatcher.unsafeRunAndForget(events.publish1(event))
-
-              override def onButtonInteraction(
-                event: ButtonInteractionEvent
-              ): Unit =
-                dispatcher.unsafeRunAndForget(events.publish1(event))
-
-            JDABuilder
-              .createLight(token)
-              .addEventListeners(topicListener)
-              .build()
-
-          random <- Random.scalaUtilRandom[IO]
-
-          _ <- events.subscribeUnbounded
-            .debug: event =>
-              s"Incoming event: $event"
-            .collect:
-              case event: SlashCommandInteractionEvent =>
-                given Random[IO] = random
-                given Interaction[IO] = Interaction.ofAsync[IO](
-                  events.subscribeUnbounded,
-                  supervisor,
-                  event
-                )
-
-                commands[IO]
-                  .get(event.getName)
-                  .map: cmd =>
-                    cmd.run(cmd.args.extract(event).get)
-                  .getOrElse(IO.unit)
-            .parEvalMapUnbounded(identity)
-            .compile
-            .drain
-        yield ExitCode.Success
+    app[IO](
+      "MTI5ODc4ODk3MzUyNjkxMzA3NA.Gz0d1h.Y-TrM2kl_MTpE6i-hKOEd5Jk2USkhE0WrNMtYA"
+    )

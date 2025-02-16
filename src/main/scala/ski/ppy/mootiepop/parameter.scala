@@ -47,7 +47,7 @@ case class Opt(
   )
 
 trait Args[A](val opts: List[Opt]):
-  def extract(payload: CommandInteractionPayload): Option[A]
+  def extract(event: Event.Slash): Option[A]
 
 given Applicative[Args]:
   def pure[A](x: A): Args[A] = Args()(_ => x.some)
@@ -58,26 +58,32 @@ given Applicative[Args]:
         ff <- ff.extract(p)
       yield ff(a)
 
+extension (p: CommandInteractionPayload)
+  inline def apply(name: String): Option[OptionMapping] =
+    Option(p.getOption(name))
+
+extension (s: Event.Slash)
+  def optionString(name: String): Option[String] =
+    s.event(name).map(_.getAsString)
+
+  def optionUser(name: String): Option[User] =
+    s.event(name).flatMap(m => Try(m.getAsUser).toOption)
+
+  def optionInt(name: String): Option[Int] =
+    s.event(name).flatMap(m => Try(m.getAsInt).toOption)
+
 object Args extends TwiddleSyntax[Args]:
   def apply[A](
     opts: Opt*
-  )(f: CommandInteractionPayload => Option[A]): Args[A] =
+  )(f: Event.Slash => Option[A]): Args[A] =
     new Args[A](opts.toList):
-      def extract(payload: CommandInteractionPayload): Option[A] = f(payload)
-
-  extension (p: CommandInteractionPayload)
-    inline def apply(name: String): Option[OptionMapping] =
-      Option(p.getOption(name))
+      def extract(payload: Event.Slash): Option[A] = f(payload)
 
   def string(name: String, description: String): Args[String] =
-    Args(Opt(ParamType.String, name, description)): p =>
-      p(name).map(_.getAsString)
+    Args(Opt(ParamType.String, name, description))(_.optionString(name))
+
   def user(name: String, description: String): Args[User] =
-    Args(Opt(ParamType.User, name, description)): p =>
-      p(name).map(_.getAsUser)
+    Args(Opt(ParamType.User, name, description))(_.optionUser(name))
+
   def int(name: String, description: String): Args[Int] =
-    Args(Opt(ParamType.Integer, name, description)): p =>
-      for
-        mapping <- p(name)
-        int     <- Try(mapping.getAsInt).toOption
-      yield int
+    Args(Opt(ParamType.Integer, name, description))(_.optionInt(name))
