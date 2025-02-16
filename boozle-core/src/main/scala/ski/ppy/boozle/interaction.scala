@@ -1,24 +1,24 @@
 package ski.ppy
 package boozle
 
-import cats.effect.*
-import cats.effect.std.*
+import cats.*
 import cats.syntax.all.*
-import fs2.Stream
 import mouse.all.*
 import net.dv8tion.jda.api.interactions.InteractionHook
 
-enum InteractionResponse:
-  case Messaged(hook: InteractionHook)
-  case Deferred
+import InteractionResponse.*
+
+enum InteractionResponse[F[_]]:
+  case Messaged(hook: InteractionHook, components: Map[String, Component[F]])
+  case Deferred(hook: InteractionHook)
 
 trait Interaction[F[_]]:
-  def defer(): F[InteractionResponse]
+  def defer(): F[Deferred[F]]
 
   def reply(
     content: String,
     components: List[Component[F]] = Nil,
-  ): F[InteractionResponse]
+  ): F[Messaged[F]]
 
   def followUp(
     content: String,
@@ -29,58 +29,36 @@ object InteractionSummoners:
   def reply[F[_]: Interaction as i](
     content: String,
     components: List[Component[F]] = Nil,
-  ): F[InteractionResponse] =
+  ): F[Messaged[F]] =
     i.reply(content, components = components)
 
 object Interaction:
   def apply[F[_]](using i: Interaction[F]) = i
 
-  def withEvent[F[_]: {Random, Concurrent}](event: Event)(using
+  def withEvent[F[_]: {RandomIDs, Monad}](event: Event)(using
     discord: Discord[F],
   ): Interaction[F] = new:
-    override def defer(): F[InteractionResponse] =
-      discord.act(event.response.deferReply()).as(InteractionResponse.Deferred)
-
-    private def handleComponentInteractions(
-      events: Stream[F, Event],
-      components: Map[String, Component[F]],
-    ): F[Unit] =
-      Stream.emits(components.toVector)
-        .covary[F]
-        .flatMap { case (id, button: Button[?]) =>
-          events.collect:
-            case e @ Event.Button(i) if i.getComponentId == id => (button, e)
-        }
-        .parEvalMapUnbounded { case (button: Button[F], e) =>
-          button.click(withEvent[F](e))
-        }
-        .compile
-        .drain
+    override def defer(): F[Deferred[F]] =
+      discord.act(event.response.deferReply()).map: hook =>
+        Deferred(hook)
 
     override def reply(
       content: String,
       components: List[Component[F]] = List.empty,
-    ): F[InteractionResponse] =
+    ): F[Messaged[F]] =
       for
         components <- components.discernable
         jdaComponents = components.map { case (name, button: Button[?]) =>
           button.toJDA(name)
-        }.toList
+        }.toVector
 
-        // FIXME: this is gross as hell
-        action_ = event.response.reply(content)
-        action =
-          components.isEmpty.fold(action_, action_.addActionRow(jdaComponents*))
+        action = event.response.reply(content)
+          .thrush: rca =>
+            if !components.isEmpty then rca.addActionRow(jdaComponents*)
+            else rca
 
         message <- discord.act(action)
-
-        events <- discord.events
-        _ <- components.isEmpty.unlessA:
-          handleComponentInteractions(
-            events.subscribeUnbounded,
-            components,
-          )
-      yield InteractionResponse.Messaged(message)
+      yield InteractionResponse.Messaged(message, components)
 
     override def followUp(
       content: String,

@@ -2,13 +2,20 @@ package ski.ppy
 package boozle
 
 import cats.*
-import fs2.Stream
-import fs2.concurrent.Topic
-import cats.effect.*
-import cats.effect.std.*
+import cats.effect.std.Random
 import cats.syntax.all.*
+import fs2.Stream
 import net.dv8tion.jda.api.interactions.components.buttons.Button as JDAButton
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle as JDAButtonStyle
+import ski.ppy.boozle.InteractionResponse.*
+
+sealed trait RandomIDs[F[_]]:
+  def gen: F[String]
+
+object RandomIDs:
+  def fromRandom[F[_]: Monad](random: Random[F]): RandomIDs[F] = new:
+    def gen: F[String] =
+      random.nextPrintableChar.replicateA(16).map(_.mkString)
 
 enum ButtonStyle(raw: Int):
   case Primary   extends ButtonStyle(1)
@@ -18,33 +25,34 @@ enum ButtonStyle(raw: Int):
 
   def toJDA: JDAButtonStyle = JDAButtonStyle.fromKey(raw)
 
-type Handler[F[_]] = Interaction[F] ?=> F[InteractionResponse]
+type Handler[F[_]] = Interaction[F] ?=> F[InteractionResponse[F]]
 
 sealed trait Component[F[_]]
 sealed trait Button[F[_]](
   val label: String,
   val style: ButtonStyle = ButtonStyle.Secondary,
 ) extends Component[F]:
-  def clicks: Stream[F, Interaction[F]]
-  def click(i: Interaction[F]): F[Unit]
-  def close: F[Unit]
+  def clicks(container: Messaged[F]): Stream[F, Interaction[F]]
   def toJDA(id: String): JDAButton = JDAButton.of(style.toJDA, id, label)
 
 object Button:
-  def apply[F[_]: Concurrent](
+  def apply[F[_]: {Monad, RandomIDs as rids, Discord as discord}](
     label: String,
     style: ButtonStyle = ButtonStyle.Secondary,
-  ): F[Button[F]] =
-    for
-      topic <- Topic[F, Interaction[F]]
-    yield new Button[F](label, style):
-      def clicks                   = topic.subscribeUnbounded
-      def click(i: Interaction[F]) = topic.publish1(i).void
-      def close                    = topic.close.void
+  ): Button[F] =
+    new Button[F](label, style) { button =>
+      def clicks(messaged: Messaged[F]): Stream[F, Interaction[F]] =
+        discord.events
+          .only[Event.Button]
+          .withFilter { event =>
+            val pressed = messaged.components.get(event.componentId)
+            // XXX: reference equality
+            pressed.map(_ eq button).getOrElse(false)
+          }
+          .map(Interaction.withEvent[F](_))
+    }
 
 extension [F[_]: Applicative](cs: List[Component[F]])
-  def discernable(using random: Random[F]): F[Map[String, Component[F]]] =
-    cs.traverse:
-      case button: Button[?] =>
-        random.nextString(16).map(id => (id, button))
-    .map(Map.from)
+  def discernable(using rids: RandomIDs[F]): F[Map[String, Component[F]]] =
+    cs.traverse { case button: Button[?] => rids.gen.map(id => (id, button)) }
+      .map(Map.from)

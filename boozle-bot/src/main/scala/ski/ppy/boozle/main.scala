@@ -16,23 +16,23 @@ import ski.ppy.boozle.InteractionSummoners.*
 
 import java.io.File
 
-def smack[F[_]: {Concurrent, Interaction}] = Cmd(
+def smack[F[_]: {Concurrent, Interaction, Discord, RandomIDs}] = Cmd(
   user("target", "who to smack") *: string("reason", "why you're doing it"),
 ) { case (victim, why) =>
+  val button = Button[F]("but why")
   for
-    button <- Button("but why")
     response <- reply(
       s"${victim.getAsMention} ***WHAP***",
       components = List(button),
     )
-    _ <- button.clicks
+    _ <- button.clicks(response)
       .evalMap { case given Interaction[F] => reply("no") }
       .compile
       .drain
   yield response
 }
 
-def commands[F[_]: {Concurrent, Interaction}] =
+def commands[F[_]: {Concurrent, RandomIDs, Discord, Interaction}] =
   Map[String, Cmd[F]]("smack" -> smack)
 
 object Main extends IOApp:
@@ -43,9 +43,10 @@ object Main extends IOApp:
   def app[F[_]: Async](cfg: Config): F[Unit] =
     Discord.fromJDA[F](cfg.token) use: discord =>
       for
-        given Random[F] <- Random.scalaUtilRandom[F]
-        events          <- discord.events
-        _ <- events.subscribeUnbounded
+        random <- Random.scalaUtilRandom[F]
+        given RandomIDs[F] = RandomIDs.fromRandom(random)
+
+        _ <- discord.events
           .debug(event => s"[Debug]: Event: $event")
           .collect:
             case event @ Event.Slash(slash) =>

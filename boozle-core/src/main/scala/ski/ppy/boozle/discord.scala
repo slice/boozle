@@ -4,6 +4,7 @@ package boozle
 import cats.effect.*
 import cats.effect.std.*
 import cats.syntax.all.*
+import fs2.Stream
 import fs2.concurrent.Topic
 import net.dv8tion.jda.api.JDABuilder
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
@@ -13,7 +14,7 @@ import net.dv8tion.jda.api.interactions.*
 import net.dv8tion.jda.api.requests.RestAction
 
 trait Discord[F[_]]:
-  def events: F[Topic[F, Event]]
+  def events: Stream[F, Event]
   def register(commands: Map[String, Cmd[F]]): F[Unit]
   def act[A](action: RestAction[A]): F[A]
   def shutdown: F[Unit]
@@ -49,7 +50,7 @@ object Discord:
           .addEventListeners(listener)
           .build()
     yield new:
-      def events: F[Topic[F, Event]] = topic.pure[F]
+      def events: Stream[F, Event] = topic.subscribeUnbounded
       def register(commands: Map[String, Cmd[F]]): F[Unit] =
         val cmds = (commands
           .map: (name, cmd) =>
