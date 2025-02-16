@@ -16,20 +16,24 @@ import ski.ppy.boozle.InteractionSummoners.*
 
 import java.io.File
 
-def smack[F[_]: Interaction] = Cmd(user(
-  "target",
-  "who to smack",
-) *: string("reason", "why you're doing it")):
-  case (victim, why) =>
-    reply(
+def smack[F[_]: {Concurrent, Interaction}] = Cmd(
+  user("target", "who to smack") *: string("reason", "why you're doing it"),
+) { case (victim, why) =>
+  for
+    button <- Button("but why")
+    response <- reply(
       s"${victim.getAsMention} ***WHAP***",
-      components = List(Button("but why"):
-        reply(s"because! $why")),
+      components = List(button),
     )
+    _ <- button.clicks
+      .evalMap { case given Interaction[F] => reply("no") }
+      .compile
+      .drain
+  yield response
+}
 
-def commands[F[_]: Interaction] = Map[String, Cmd[F]](
-  "smack" -> smack,
-)
+def commands[F[_]: {Concurrent, Interaction}] =
+  Map[String, Cmd[F]]("smack" -> smack)
 
 object Main extends IOApp:
   def config[F[_]](path: String)(using sync: Sync[F]): F[Config] =

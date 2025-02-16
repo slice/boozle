@@ -17,18 +17,18 @@ trait Interaction[F[_]]:
 
   def reply(
     content: String,
-    components: List[Component] = Nil,
+    components: List[Component[F]] = Nil,
   ): F[InteractionResponse]
 
   def followUp(
     content: String,
-    components: List[Component] = Nil,
+    components: List[Component[F]] = Nil,
   ): F[Unit]
 
 object InteractionSummoners:
   def reply[F[_]: Interaction as i](
     content: String,
-    components: List[Component] = Nil,
+    components: List[Component[F]] = Nil,
   ): F[InteractionResponse] =
     i.reply(content, components = components)
 
@@ -41,36 +41,31 @@ object Interaction:
     override def defer(): F[InteractionResponse] =
       discord.act(event.response.deferReply()).as(InteractionResponse.Deferred)
 
-    private def handleInteractions(
+    private def handleComponentInteractions(
       events: Stream[F, Event],
-      components: Map[String, Component],
+      components: Map[String, Component[F]],
     ): F[Unit] =
-      events.collect:
-        case e: Event.Button => e
-      .map: event =>
-        for
-          (_, component) <-
-            components.find((name, _) => name == event.componentId)
-          // FIXME: hardcoding buttons
-          button = component.asInstanceOf[Button[F]]
-        yield Stream.eval:
-          given Interaction[F] = Interaction.withEvent[F](event)
-          button.onClick
-      .unNone
-        .parJoinUnbounded
+      Stream.emits(components.toVector)
+        .covary[F]
+        .flatMap { case (id, button: Button[?]) =>
+          events.collect:
+            case e @ Event.Button(i) if i.getComponentId == id => (button, e)
+        }
+        .parEvalMapUnbounded { case (button: Button[F], e) =>
+          button.click(withEvent[F](e))
+        }
         .compile
         .drain
 
     override def reply(
       content: String,
-      components: List[Component] = List.empty,
+      components: List[Component[F]] = List.empty,
     ): F[InteractionResponse] =
       for
-        components <- components.makeDiscernable
-        jdaComponents = components.map: (name, component) =>
-          // FIXME: hardcoding buttons
-          component.asInstanceOf[Button[F]].toJDA(name)
-        .toList
+        components <- components.discernable
+        jdaComponents = components.map { case (name, button: Button[?]) =>
+          button.toJDA(name)
+        }.toList
 
         // FIXME: this is gross as hell
         action_ = event.response.reply(content)
@@ -81,7 +76,7 @@ object Interaction:
 
         events <- discord.events
         _ <- components.isEmpty.unlessA:
-          handleInteractions(
+          handleComponentInteractions(
             events.subscribeUnbounded,
             components,
           )
@@ -89,7 +84,7 @@ object Interaction:
 
     override def followUp(
       content: String,
-      components: List[Component] = List.empty,
+      components: List[Component[F]] = List.empty,
     ): F[Unit] =
       // TODO: clearly unfinished
       discord.act(event.hook.sendMessage(content)).void
