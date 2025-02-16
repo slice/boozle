@@ -23,6 +23,8 @@ extension [F[_], A](r: Resource.type)
     Resource.eval(sync.delay(a))
 
 object Discord:
+  def apply[F[_]](using d: Discord[F]): Discord[F] = d
+
   private def makeListener[F[_]](
     publish1: Event => Unit
   ): ListenerAdapter = new:

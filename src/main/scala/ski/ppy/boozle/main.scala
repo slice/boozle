@@ -38,14 +38,13 @@ object Main extends IOApp:
   def app[F[_]: Async](cfg: Config): F[Unit] =
     Discord.fromJDA[F](cfg.token) use: discord =>
       for
-        random <- Random.scalaUtilRandom[F]
-        events <- discord.events
+        given Random[F] <- Random.scalaUtilRandom[F]
+        events          <- discord.events
         _ <- events.subscribeUnbounded
           .debug(event => s"[Debug]: Event: $event")
           .collect:
             case event @ Event.Slash(slash) =>
               given Discord[F]     = discord
-              given Random[F]      = random
               given Interaction[F] = Interaction.withEvent[F](event)
               Stream.eval:
                 commands[F].get(slash.getName).traverse: cmd =>
