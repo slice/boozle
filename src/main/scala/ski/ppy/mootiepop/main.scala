@@ -6,8 +6,12 @@ import cats.effect.*
 import cats.effect.std.Random
 import cats.syntax.all.*
 import fs2.Stream
+import fabric.*
 import net.dv8tion.jda.api.entities.User
 import ski.ppy.mootiepop.Args.*
+import fabric.rw.*
+import fabric.io.*
+import java.io.File
 
 def smack[F[_]: Interaction] = Cmd(
   user("target", "who to smack") *: string("reason", "why you're doing it")
@@ -24,29 +28,33 @@ def commands[F[_]: Interaction] = Map[String, Cmd[F]](
 )
 
 object Main extends IOApp:
-  val token =
-    "MTI5ODc4ODk3MzUyNjkxMzA3NA.Gz0d1h.Y-TrM2kl_MTpE6i-hKOEd5Jk2USkhE0WrNMtYA"
+  def config[F[_]](path: String)(using sync: Sync[F]): F[Config] =
+    MonadError[F, Throwable].catchNonFatal:
+      JsonParser(File(path)).as[Config]
 
-  def app[F[_]](using discord: Discord[F])(using Async[F]): F[ExitCode] =
-    for {
-      random <- Random.scalaUtilRandom[F]
-      events <- discord.events
-      _ <- events.subscribeUnbounded
-        .debug(event => s"[Debug]: Event: $event")
-        .collect:
-          case event @ Event.Slash(slash) =>
-            given Discord[F]     = discord
-            given Random[F]      = random
-            given Interaction[F] = Interaction.ofAsync[F](event)
-            Stream.eval:
-              commands[F].get(slash.getName).traverse: cmd =>
-                cmd.run(cmd.args.extract(event).get).void
-              .void
-        .parJoinUnbounded
-        .compile
-        .drain
-    } yield ExitCode.Success
+  def app[F[_]: Async](cfg: Config): F[Unit] =
+    Discord.fromJDA[F](cfg.token) use: discord =>
+      for
+        random <- Random.scalaUtilRandom[F]
+        events <- discord.events
+        _ <- events.subscribeUnbounded
+          .debug(event => s"[Debug]: Event: $event")
+          .collect:
+            case event @ Event.Slash(slash) =>
+              given Discord[F]     = discord
+              given Random[F]      = random
+              given Interaction[F] = Interaction.ofAsync[F](event)
+              Stream.eval:
+                commands[F].get(slash.getName).traverse: cmd =>
+                  cmd.run(cmd.args.extract(event).get).void
+                .void
+          .parJoinUnbounded
+          .compile
+          .drain
+      yield ()
 
   def run(args: List[String]): IO[ExitCode] =
-    Discord.fromJDA[IO](token) use:
-      app(using _)
+    for {
+      config <- config[IO]("./config.json")
+      _      <- app[IO](config)
+    } yield ExitCode.Error

@@ -15,6 +15,8 @@ inThisBuild(
 
 Compile / run / fork := true
 
+val fabricVersion = "1.15.9"
+
 libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-effect" % "3.5.7",
   "org.typelevel" %% "cats-core"   % "2.13.0",
@@ -24,7 +26,9 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "twiddles-core"   % "0.9.0",
   "ch.qos.logback" % "logback-classic" % "1.5.6",
   "co.fs2"        %% "fs2-core"        % "3.11.0",
-  "co.fs2"        %% "fs2-io"          % "3.11.0"
+  "co.fs2"        %% "fs2-io"          % "3.11.0",
+  "org.typelevel" %% "fabric-core"     % fabricVersion,
+  "org.typelevel" %% "fabric-io"       % fabricVersion
 )
 
 scalacOptions ++= Seq(

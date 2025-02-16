@@ -25,3 +25,5 @@ out/
 .bloop/
 *.semanticdb
 metals.sbt
+
+/*.json
