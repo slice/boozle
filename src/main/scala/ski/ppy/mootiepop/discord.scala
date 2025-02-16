@@ -24,7 +24,7 @@ extension [F[_], A](r: Resource.type)
     Resource.eval(sync.delay(a))
 
 object Discord:
-  private def relayListener[F[_]](
+  private def makeListener[F[_]](
     publish1: Event => Unit
   ): ListenerAdapter = new:
     override def onSlashCommandInteraction(
@@ -41,11 +41,12 @@ object Discord:
       supervisor <- Supervisor[F](await = false)
       topic      <- Resource.eval(Topic[F, Event])
 
+      listener = makeListener: event =>
+        dispatcher.unsafeRunAndForget(topic.publish1(event))
       jda <- Resource.delay:
         JDABuilder
           .createLight(token)
-          .addEventListeners(relayListener: event =>
-            dispatcher.unsafeRunAndForget(topic.publish1(event)))
+          .addEventListeners(listener)
           .build()
     yield new:
       def events: F[Topic[F, Event]]   = topic.pure[F]
