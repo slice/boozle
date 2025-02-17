@@ -22,6 +22,7 @@ import scala.language.experimental.betterFors
 
 extension (u: User)
   def mention: String = u.getAsMention
+  def tag: String     = u.getAsTag
 
 def smack[F[_]] = Cmd.withArgs(
   user("target", "who to smack") *: string("reason", "why you're doing it"),
@@ -41,8 +42,24 @@ def smack[F[_]] = Cmd.withArgs(
     yield msg
 
 def counter[F[_]] = Cmd:
-  val inc = Button[F]("+1")
-  replyEmbed(Embed(title = "0".some), components = List(inc))
+  for
+    inc = Button[F]("+1")
+    msg <- replyEmbed(Embed(title = "0".some), components = List(inc))
+    _ <- inc.clicks(in = msg)
+      .interactTap { deferEdit }
+      .buffer(1)
+      .zipWithIndex
+      .map { case (given Interaction[F], index) =>
+        (index, s"$index. Clicked by **${invoker.mention}**!")
+      }
+      .sliding(3)
+      .debounce(3.seconds)
+      .evalMap: (chunk) =>
+        val latestCount = chunk.last.get._1
+        val desc        = chunk.map(_._2).mkString_("\n")
+        msg.edit(Embed(title = s"$latestCount".some, description = desc.some))
+      .runFor(5.minutes)
+  yield msg
 
 def commands[F[_]] =
   Map[String, Cmd[F]]("smack" -> smack, "counter" -> counter)

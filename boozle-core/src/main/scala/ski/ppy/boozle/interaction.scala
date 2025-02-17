@@ -3,13 +3,14 @@ package boozle
 
 import cats.*
 import cats.effect.*
-import fs2.Stream
 import cats.effect.std.Random
 import cats.syntax.all.*
+import fs2.Stream
 import mouse.all.*
-import net.dv8tion.jda.api.interactions.InteractionHook
 import net.dv8tion.jda.api.entities.ISnowflake
 import net.dv8tion.jda.api.entities.User
+import net.dv8tion.jda.api.interactions.InteractionHook
+
 import scala.concurrent.duration.FiniteDuration
 
 sealed trait RandomIDs[F[_]]:
@@ -35,6 +36,8 @@ case class Messaged[F[_]: Monad](
   // TODO: don't return `Unit`
   def edit(content: String): F[Unit] =
     discord.act(hook.editOriginal(content)).void
+  def edit(embed: Embed): F[Unit] =
+    discord.act(hook.editOriginalEmbeds(embed.toJDA)).void
 
 case class Deferred[F[_]](hook: InteractionHook) extends InteractionResponse[F]
 
@@ -45,6 +48,11 @@ trait Interaction[F[_]] extends RandomIDs[F]:
 
   def reply(
     content: String,
+    components: List[Component[F]] = Nil,
+  ): F[Messaged[F]]
+  // TODO: this duplication sucks
+  def replyEmbed(
+    embed: Embed,
     components: List[Component[F]] = Nil,
   ): F[Messaged[F]]
 
@@ -59,6 +67,13 @@ object InteractionSummoners:
     components: List[Component[F]] = Nil,
   ): F[Messaged[F]] =
     i.reply(content, components = components)
+
+  // TODO: this duplication sucks
+  def replyEmbed[F[_]: Interaction as i](
+    embed: Embed,
+    components: List[Component[F]] = Nil,
+  ): F[Messaged[F]] =
+    i.replyEmbed(embed, components = components)
 
   def invoker[F[_]: Interaction as i]: User = i.user
 
@@ -98,6 +113,26 @@ object Interaction:
         message <- discord.act(action)
       yield Messaged(message, components)
 
+    // TODO: this duplication sucks
+    override def replyEmbed(
+      embed: Embed,
+      components: List[Component[F]] = List.empty,
+    ): F[Messaged[F]] =
+      import RandomIDs.*
+      for
+        components <- components.discernable
+        jdaComponents = components.map { case (name, button: Button[?]) =>
+          button.toJDA(name)
+        }.toVector
+
+        action = event.response.replyEmbeds(embed.toJDA)
+          .thrush: rca =>
+            if !components.isEmpty then rca.addActionRow(jdaComponents*)
+            else rca
+
+        message <- discord.act(action)
+      yield Messaged(message, components)
+
     override def followUp(
       content: String,
       components: List[Component[F]] = List.empty,
@@ -126,8 +161,11 @@ extension [F[_], I <: Interaction[F]](interactions: Stream[F, I])
 
   def once: Stream[F, I] = interactions.head
 
-  def interact[A, R <: InteractionResponse[F]](f: I ?=> F[R]): Stream[F, R] =
+  def interact[R <: InteractionResponse[F]](f: I ?=> F[R]): Stream[F, R] =
     interactions.evalMap { case given I => f }
+
+  def interactTap[A](f: I ?=> F[A]): Stream[F, I] =
+    interactions.evalTap { case given I => f }
 
 extension [F[_], A](s: Stream[F, A])(using Temporal[F])
   def runFor(duration: FiniteDuration): F[Unit] =
