@@ -23,7 +23,7 @@ import scala.language.experimental.betterFors
 extension (u: User)
   def mention: String = u.getAsMention
 
-def smack[F[_]: {Temporal, Interaction, Discord}] = Cmd(
+def smack[F[_]: {Temporal, Discord}] = Cmd(
   user("target", "who to smack") *: string("reason", "why you're doing it"),
 ):
   case (victim, why) =>
@@ -40,8 +40,12 @@ def smack[F[_]: {Temporal, Interaction, Discord}] = Cmd(
         .runFor(1.minute)
     yield msg
 
-def commands[F[_]: {Discord, Temporal, Interaction}] =
-  Map[String, Cmd[F]]("smack" -> smack)
+def counter[F[_]: {Temporal, Discord}] = Cmd[F, Messaged[F]]:
+  val inc = Button[F]("+1")
+  replyEmbed(Embed(title = "0".some), components = List(inc))
+
+def commands[F[_]: {Discord, Temporal}] =
+  Map[String, Cmd[F]]("smack" -> smack, "counter" -> counter)
 
 object Main extends IOApp:
   def config[F[_]](path: String)(using sync: Sync[F]): F[Config] =
@@ -77,12 +81,13 @@ object Main extends IOApp:
     Discord.fromJDA[F](cfg.token) use { case (given Discord[F]) =>
       Random.scalaUtilRandom.flatMap: random =>
         given RandomIDs[F] = RandomIDs.fromRandom(random)
-        Discord[F].events
-          .debug(event => s"[Debug]: Event: $event")
-          .collect(handleEvent)
-          .parJoinUnbounded
-          .compile
-          .drain
+        Discord[F].register(commands).whenA(cfg.register) *>
+          Discord[F].events
+            .debug(event => s"[Debug]: Event: $event")
+            .collect(handleEvent)
+            .parJoinUnbounded
+            .compile
+            .drain
     }
 
   def run(args: List[String]): IO[ExitCode] =
