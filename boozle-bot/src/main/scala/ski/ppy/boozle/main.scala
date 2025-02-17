@@ -10,20 +10,20 @@ import fabric.io.*
 import fabric.rw.*
 import fs2.Stream
 import net.dv8tion.jda.api.entities.User
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import ski.ppy.boozle.*
 import ski.ppy.boozle.Args.*
 import ski.ppy.boozle.InteractionSummoners.*
 
 import java.io.File
-import scala.concurrent.duration.*
-import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import java.util.concurrent.TimeoutException
+import scala.concurrent.duration.*
 import scala.language.experimental.betterFors
 
 extension (u: User)
   def mention: String = u.getAsMention
 
-def smack[F[_]: {Temporal, Discord}] = Cmd(
+def smack[F[_]] = Cmd.withArgs(
   user("target", "who to smack") *: string("reason", "why you're doing it"),
 ):
   case (victim, why) =>
@@ -40,11 +40,11 @@ def smack[F[_]: {Temporal, Discord}] = Cmd(
         .runFor(1.minute)
     yield msg
 
-def counter[F[_]: {Temporal, Discord}] = Cmd[F, Messaged[F]]:
+def counter[F[_]] = Cmd:
   val inc = Button[F]("+1")
   replyEmbed(Embed(title = "0".some), components = List(inc))
 
-def commands[F[_]: {Discord, Temporal}] =
+def commands[F[_]] =
   Map[String, Cmd[F]]("smack" -> smack, "counter" -> counter)
 
 object Main extends IOApp:
