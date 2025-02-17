@@ -3,7 +3,7 @@ package boozle.bot
 
 import cats.*
 import cats.effect.*
-import cats.effect.std.Random
+import cats.effect.std.*
 import cats.syntax.all.*
 import fabric.*
 import fabric.io.*
@@ -16,6 +16,8 @@ import ski.ppy.boozle.InteractionSummoners.*
 
 import java.io.File
 import scala.concurrent.duration.*
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
+import java.util.concurrent.TimeoutException
 
 def smack[F[_]: {Temporal, Interaction, Discord}] = Cmd(
   user("target", "who to smack") *: string("reason", "why you're doing it"),
@@ -42,27 +44,42 @@ object Main extends IOApp:
     MonadError[F, Throwable].catchNonFatal:
       JsonParser(File(path)).as[Config]
 
-  def app[F[_]: Async](cfg: Config): F[Unit] =
-    Discord.fromJDA[F](cfg.token) use: discord =>
-      for
-        random <- Random.scalaUtilRandom[F]
-        given RandomIDs[F] = RandomIDs.fromRandom(random)
+    // TODO: make error handling customizable
+  def handleCommandError[F[_]: Applicative](
+    event: SlashCommandInteractionEvent,
+    throwable: Throwable,
+  )(using console: Console[F]): F[Unit] =
+    console.errorln:
+      s"Command ${event.getName} invoked by ${event.getUser.getId} in ${event.getChannel.getId} failed: ${throwable}"
+    .whenA(!throwable.isInstanceOf[TimeoutException])
 
-        _ <- discord.events
+  def handleEvent[F[_]](using
+    Temporal[F],
+    RandomIDs[F],
+    Discord[F],
+    Console[F],
+  ): PartialFunction[Event, Stream[F, Unit]] =
+    case event @ Event.Slash(slash) =>
+      given Interaction[F] = Interaction.withEvent[F](event)
+      Stream.eval:
+        commands[F].get(slash.getName).traverse: cmd =>
+          val args = cmd.args.extract(event).get
+          cmd.run(args)
+            .void
+            .handleErrorWith(handleCommandError(slash, _))
+        .void
+
+  def app[F[_]: Async](cfg: Config)(using console: Console[F]): F[Unit] =
+    Discord.fromJDA[F](cfg.token) use { case (given Discord[F]) =>
+      Random.scalaUtilRandom.flatMap: random =>
+        given RandomIDs[F] = RandomIDs.fromRandom(random)
+        Discord[F].events
           .debug(event => s"[Debug]: Event: $event")
-          .collect:
-            case event @ Event.Slash(slash) =>
-              given Discord[F]     = discord
-              given Interaction[F] = Interaction.withEvent[F](event)
-              // TODO: catchNonFatal
-              Stream.eval:
-                commands[F].get(slash.getName).traverse: cmd =>
-                  cmd.run(cmd.args.extract(event).get).void
-                .void
+          .collect(handleEvent)
           .parJoinUnbounded
           .compile
           .drain
-      yield ()
+    }
 
   def run(args: List[String]): IO[ExitCode] =
     for {
