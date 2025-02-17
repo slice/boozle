@@ -21,7 +21,7 @@ sealed trait Button[F[_]](
   val label: String,
   val style: ButtonStyle = ButtonStyle.Secondary,
 ) extends Component[F]:
-  def clicks(container: Messaged[F]): Stream[F, InteractionEditable[F]]
+  infix def clicks(in: Messaged[F]): Stream[F, InteractionEditable[F]]
   def toJDA(id: String): JDAButton = JDAButton.of(style.toJDA, id, label)
 
 object Button:

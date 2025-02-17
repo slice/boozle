@@ -10,33 +10,35 @@ import fabric.io.*
 import fabric.rw.*
 import fs2.Stream
 import net.dv8tion.jda.api.entities.User
-import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import ski.ppy.boozle.*
 import ski.ppy.boozle.Args.*
 import ski.ppy.boozle.InteractionSummoners.*
 
 import java.io.File
-import java.util.concurrent.TimeoutException
 import scala.concurrent.duration.*
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
+import java.util.concurrent.TimeoutException
+import scala.language.experimental.betterFors
+
+extension (u: User)
+  def mention: String = u.getAsMention
 
 def smack[F[_]: {Temporal, Interaction, Discord}] = Cmd(
   user("target", "who to smack") *: string("reason", "why you're doing it"),
-) { case (victim, why) =>
-  val button = Button[F]("but why")
-  for
-    response <- reply(
-      s"${victim.getAsMention} ***WHAP***",
-      components = List(button),
-    )
-    _ <- button.clicks(response)
-      .evalMap { case given Interaction[F] =>
-        deferEdit *> response.edit("nice")
-      }
-      .timeout(1.minutes)
-      .compile
-      .drain
-  yield response
-}
+):
+  case (victim, why) =>
+    for
+      interrogate = Button[F]("but why")
+
+      msg <-
+        reply(s"${victim.mention} ***SMACK***", components = List(interrogate))
+
+      _ <- interrogate.clicks(in = msg)
+        .onlyFrom(victim).once
+        .interact:
+          reply(s"${invoker.mention} smacked you because: $why")
+        .runFor(1.minute)
+    yield msg
 
 def commands[F[_]: {Discord, Temporal, Interaction}] =
   Map[String, Cmd[F]]("smack" -> smack)

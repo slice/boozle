@@ -2,10 +2,15 @@ package ski.ppy
 package boozle
 
 import cats.*
+import cats.effect.*
+import fs2.Stream
 import cats.effect.std.Random
 import cats.syntax.all.*
 import mouse.all.*
 import net.dv8tion.jda.api.interactions.InteractionHook
+import net.dv8tion.jda.api.entities.ISnowflake
+import net.dv8tion.jda.api.entities.User
+import scala.concurrent.duration.FiniteDuration
 
 sealed trait RandomIDs[F[_]]:
   def randomID: F[String]
@@ -34,6 +39,8 @@ case class Messaged[F[_]: Monad](
 case class Deferred[F[_]](hook: InteractionHook) extends InteractionResponse[F]
 
 trait Interaction[F[_]] extends RandomIDs[F]:
+  val user: User
+
   def defer: F[Deferred[F]]
 
   def reply(
@@ -53,6 +60,8 @@ object InteractionSummoners:
   ): F[Messaged[F]] =
     i.reply(content, components = components)
 
+  def invoker[F[_]: Interaction as i]: User = i.user
+
   def deferEdit[F[_]: InteractionEditable as ie]: F[Deferred[F]] =
     ie.deferEdit
 
@@ -64,6 +73,8 @@ object Interaction:
     rids: RandomIDs[F],
   ): Interaction[F] = new:
     export rids.*
+
+    val user = event.interaction.getUser
 
     override def defer: F[Deferred[F]] =
       discord.act(event.response.deferReply()).map(Deferred(_))
@@ -108,3 +119,16 @@ object InteractionEditable:
       export interaction.*
       def deferEdit: F[Deferred[F]] =
         Discord[F].act(event.event.deferEdit()).map(Deferred(_))
+
+extension [F[_], I <: Interaction[F]](interactions: Stream[F, I])
+  def onlyFrom(snowflake: ISnowflake): Stream[F, I] =
+    interactions.filter(_.user.getId == snowflake.getId)
+
+  def once: Stream[F, I] = interactions.head
+
+  def interact[A, R <: InteractionResponse[F]](f: I ?=> F[R]): Stream[F, R] =
+    interactions.evalMap { case given I => f }
+
+extension [F[_], A](s: Stream[F, A])(using Temporal[F])
+  def runFor(duration: FiniteDuration): F[Unit] =
+    s.timeout(duration).compile.drain

@@ -26,6 +26,12 @@ extension (e: Event)
       case Button(event) => event.getHook
     }
 
+  def interaction: net.dv8tion.jda.api.interactions.Interaction =
+    e match {
+      case Slash(event)  => event
+      case Button(event) => event
+    }
+
 import Event.*
 
 extension [F[_]](events: Stream[F, Event])
