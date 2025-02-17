@@ -2,6 +2,7 @@ package ski.ppy
 package boozle
 
 import cats.effect.*
+import cats.syntax.all.*
 
 trait Cmd[F[_]]:
   type A
@@ -33,6 +34,5 @@ object Cmd:
       type A = Unit
       type R = CR
 
-      // TODO: make method for this:
-      val args: Args[A] = Args[A]()(_ => None)
+      val args: Args[A] = ().pure
       def run(as: A)(using Interaction[F], Discord[F], Temporal[F]): F[CR] = f
