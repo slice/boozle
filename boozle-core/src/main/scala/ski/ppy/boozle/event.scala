@@ -13,14 +13,6 @@ enum Event:
   case Slash(event: SlashCommandInteractionEvent)
   case Button(event: ButtonInteractionEvent)
 
-import Event.*
-
-extension [F[_]](events: Stream[F, Event])
-  def only[E <: Event](using tt: TypeTest[Event, E]): Stream[F, E] =
-    events.collect { case (event: E) => event }
-
-extension (b: Button)
-  def componentId = b.event.getComponentId
 extension (e: Event)
   def response: IReplyCallback =
     e match {
@@ -33,6 +25,15 @@ extension (e: Event)
       case Slash(event)  => event.getHook
       case Button(event) => event.getHook
     }
+
+import Event.*
+
+extension [F[_]](events: Stream[F, Event])
+  def only[E <: Event](using tt: TypeTest[Event, E]): Stream[F, E] =
+    events.collect { case (event: E) => event }
+
+extension (b: Button)
+  def componentId = b.event.getComponentId
 
 extension (e: SlashCommandInteractionEvent)
   def toEvent = Slash(e)

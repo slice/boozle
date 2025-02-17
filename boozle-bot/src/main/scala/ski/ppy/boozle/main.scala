@@ -10,14 +10,14 @@ import fabric.io.*
 import fabric.rw.*
 import fs2.Stream
 import net.dv8tion.jda.api.entities.User
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import ski.ppy.boozle.*
 import ski.ppy.boozle.Args.*
 import ski.ppy.boozle.InteractionSummoners.*
 
 import java.io.File
-import scala.concurrent.duration.*
-import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import java.util.concurrent.TimeoutException
+import scala.concurrent.duration.*
 
 def smack[F[_]: {Temporal, Interaction, Discord}] = Cmd(
   user("target", "who to smack") *: string("reason", "why you're doing it"),
@@ -29,7 +29,9 @@ def smack[F[_]: {Temporal, Interaction, Discord}] = Cmd(
       components = List(button),
     )
     _ <- button.clicks(response)
-      .evalMap { case given Interaction[F] => reply("no") }
+      .evalMap { case given Interaction[F] =>
+        deferEdit *> response.edit("nice")
+      }
       .timeout(1.minutes)
       .compile
       .drain

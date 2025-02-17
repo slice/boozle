@@ -5,7 +5,6 @@ import cats.*
 import fs2.Stream
 import net.dv8tion.jda.api.interactions.components.buttons.Button as JDAButton
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle as JDAButtonStyle
-import ski.ppy.boozle.InteractionResponse.*
 
 enum ButtonStyle(raw: Int):
   case Primary   extends ButtonStyle(1)
@@ -22,7 +21,7 @@ sealed trait Button[F[_]](
   val label: String,
   val style: ButtonStyle = ButtonStyle.Secondary,
 ) extends Component[F]:
-  def clicks(container: Messaged[F]): Stream[F, Interaction[F]]
+  def clicks(container: Messaged[F]): Stream[F, InteractionEditable[F]]
   def toJDA(id: String): JDAButton = JDAButton.of(style.toJDA, id, label)
 
 object Button:
@@ -31,7 +30,7 @@ object Button:
     style: ButtonStyle = ButtonStyle.Secondary,
   ): Button[F] =
     new Button[F](label, style) { button =>
-      def clicks(messaged: Messaged[F]): Stream[F, Interaction[F]] =
+      def clicks(messaged: Messaged[F]): Stream[F, InteractionEditable[F]] =
         discord.events
           .only[Event.Button]
           .withFilter { event =>
@@ -39,5 +38,5 @@ object Button:
             // XXX: reference equality
             pressed.map(_ eq button).getOrElse(false)
           }
-          .map(Interaction.withEvent[F](_))
+          .map(InteractionEditable.withEvent[F](_))
     }
