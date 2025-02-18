@@ -13,6 +13,7 @@ import net.dv8tion.jda.api.entities.User
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import ski.ppy.boozle.*
 import ski.ppy.boozle.Args.*
+import ski.ppy.boozle.EmbedBuilder.*
 import ski.ppy.boozle.InteractionSummoners.*
 
 import java.io.File
@@ -44,7 +45,10 @@ def smack[F[_]] = Cmd.withArgs(
 def counter[F[_]] = Cmd:
   for
     inc = Button[F]("+1")
-    msg <- replyEmbed(Embed(title = "0".some), components = List(inc))
+    msg <- replyEmbed(
+      embed { title("0") },
+      components = List(inc),
+    )
     _ <- inc.clicks(in = msg)
       .interactTap { deferEdit }
       .buffer(1)
