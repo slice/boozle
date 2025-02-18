@@ -169,4 +169,4 @@ extension [F[_], I <: Interaction[F]](interactions: Stream[F, I])
 
 extension [F[_], A](s: Stream[F, A])(using Temporal[F])
   def runFor(duration: FiniteDuration): F[Unit] =
-    s.timeout(duration).compile.drain
+    s.interruptAfter(duration).compile.drain
