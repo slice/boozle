@@ -33,7 +33,10 @@ def counter[F[_]] = Cmd:
       .evalMap { lastThreeClicks =>
         val (latestCount, _) = lastThreeClicks.last.get
         val summary          = lastThreeClicks.map(_._2).mkString_("\n")
-        msg.edit(embed { title(s"$latestCount"); description(summary) })
+        msg.edit(embed {
+          title(s"$latestCount".refineUnsafe)
+          description(summary.refineUnsafe)
+        })
       }
       .runFor(5.minutes)
   yield msg

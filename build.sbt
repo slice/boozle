@@ -25,15 +25,17 @@ val V = new {
   def mouse      = "1.3.2"
   def twiddles   = "0.9.0"
   def jda        = "5.3.0"
+  def iron       = "2.6.0"
 }
 
 lazy val baseDependencies = Seq(
-  "org.typelevel" %% "cats-core"     % V.cats,
-  "org.typelevel" %% "cats-effect"   % V.catsEffect,
-  "org.typelevel" %% "mouse"         % V.mouse,
-  "org.typelevel" %% "twiddles-core" % V.twiddles,
-  "co.fs2"        %% "fs2-core"      % V.fs2,
-  "co.fs2"        %% "fs2-io"        % V.fs2,
+  "org.typelevel"      %% "cats-core"     % V.cats,
+  "org.typelevel"      %% "cats-effect"   % V.catsEffect,
+  "org.typelevel"      %% "mouse"         % V.mouse,
+  "org.typelevel"      %% "twiddles-core" % V.twiddles,
+  "co.fs2"             %% "fs2-core"      % V.fs2,
+  "co.fs2"             %% "fs2-io"        % V.fs2,
+  "io.github.iltotore" %% "iron"          % V.iron,
   "net.dv8tion" % "JDA" % V.jda exclude ("club.minnced", "opus-java"),
 )
 

@@ -1,6 +1,7 @@
 package ski.ppy
 package boozle.bot
 
+import _root_.io.github.iltotore.iron.*
 import cats.*
 import cats.effect.*
 import cats.effect.std.*
@@ -55,11 +56,14 @@ def counter[F[_]] = Cmd:
         (count, s"$count. Clicked by **${invoker.mention}**!")
       }
       .sliding(3)
-      .debounce(3.seconds)       // …but limit updates to a max of once every 3s
+      .debounce(3.seconds) // …but limit updates to a max of once every 3s
       .evalMap { lastThreeClicks =>
         val (latestCount, _) = lastThreeClicks.last.get
         val summary          = lastThreeClicks.map(_._2).mkString_("\n")
-        msg.edit(embed { title(s"$latestCount"); description(summary) })
+        msg.edit(embed {
+          title(s"$latestCount".refineUnsafe)
+          description(summary.refineUnsafe)
+        })
       }
       .runFor(5.minutes)
   yield msg

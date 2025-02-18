@@ -2,11 +2,11 @@ package ski.ppy
 package boozle
 
 import cats.syntax.all.*
-import mouse.all.*
+import io.github.iltotore.iron.*
+import io.github.iltotore.iron.constraint.collection.*
+import io.github.iltotore.iron.constraint.string.*
 import net.dv8tion.jda.api.EmbedBuilder as JDAEmbedBuilder
 import net.dv8tion.jda.api.entities.MessageEmbed
-
-import java.net.URL
 
 private object WeaveOps:
   extension [A](a: A)
@@ -35,10 +35,14 @@ final case class Embed(
 }
 
 object Embed:
+  type ShortString = String :| (MinLength[1] & MaxLength[256])
+  type Description = String :| (MinLength[1] & MaxLength[4096])
+  type URL         = String :| (ValidURL & MaxLength[2048])
+
   final case class Author(
     name: String,
-    url: Option[URL],
-    iconURL: Option[URL],
+    url: Option[String],
+    iconURL: Option[String],
   )
 
 object EmbedBuilder:
@@ -54,16 +58,18 @@ object EmbedBuilder:
     build
     ctx.toEmbed
 
-  def title(title: String)(using ctx: EmbedContext): Unit =
+  def title(title: Embed.ShortString)(using ctx: EmbedContext): Unit =
     ctx.title = title.some
 
-  def description(description: String)(using ctx: EmbedContext): Unit =
+  def description(description: Embed.Description)(using
+    ctx: EmbedContext,
+  ): Unit =
     ctx.description = description.some
 
   def author(
-    name: String,
-    url: Option[URL] = None,
-    iconURL: Option[URL] = None,
+    name: Embed.ShortString,
+    url: Option[Embed.URL] = None,
+    iconURL: Option[Embed.URL] = None,
   )(using ctx: EmbedContext): Unit =
     ctx.author = Embed.Author(name, url, iconURL).some
 
