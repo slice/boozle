@@ -44,7 +44,7 @@ def smack[F[_]] = Cmd.withArgs(
 
 def counter[F[_]] = Cmd:
   for
-    increment = Button("+1")
+    increment = Button[F]("+1")
     msg <- replyEmbed(embed { title("0") }, components = List(increment))
 
     _ <- increment.clicks(in = msg)

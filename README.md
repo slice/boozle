@@ -18,7 +18,7 @@ and the updates are debounced to only occur every 3 seconds at most.
 ```scala
 def counter[F[_]] = Cmd:
   for
-    increment = Button("+1")
+    increment = Button[F]("+1")
     msg <- replyEmbed(embed { title("0") }, components = List(increment))
 
     _ <- increment.clicks(in = msg)
